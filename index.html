@@ -27,7 +27,8 @@ if ("serviceWorker" in navigator) {
   html,body{margin:0;background:var(--bg);color:var(--text);
     font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;
     -webkit-text-size-adjust:100%}
-  button{font-family:inherit;cursor:pointer}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation;
+    -webkit-user-select:none;user-select:none}
   input{font-family:inherit}
   header{position:sticky;top:0;z-index:10;background:var(--bg);
     border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
@@ -58,6 +59,8 @@ if ("serviceWorker" in navigator) {
   .pill.custom{font-style:italic}
   .ghost{background:var(--soft);color:var(--moon);border:1px solid var(--line);border-radius:10px;
     padding:6px 12px;font-size:14px}
+  .stepbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--soft);
+    color:var(--moon);font-size:22px;font-weight:600}
   .abil{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
   .saverow{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;
     border:none;border-bottom:1px solid var(--line);padding:11px 2px;color:var(--text);font-size:15px}
@@ -81,7 +84,7 @@ if ("serviceWorker" in navigator) {
 <header>
   <div>
     <div class="name">Habib Esphyrr Uneno V'Ent</div>
-    <div class="sub">Druida · Círculo da Lua · nível 18</div>
+    <div class="sub" id="subtitle">Druida · Círculo da Lua</div>
   </div>
   <div style="display:flex;align-items:center;gap:4px">
     <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 3a9 9 0 1 0 0 18 7 9 0 0 1 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
@@ -128,18 +131,32 @@ const DEFAULT_PREPARED = ["Absorb Elements","Healing Word","Moonbeam","Healing S
 const ABILS = ["FOR","DES","CON","INT","SAB","CAR"];
 const ABIL_FULL = {FOR:"Força",DES:"Destreza",CON:"Constituição",INT:"Inteligência",SAB:"Sabedoria",CAR:"Carisma"};
 
+/* Tabela de conjurador completo: slots por nível de personagem (índices 0..8 = níveis de magia 1..9) */
+const SLOT_TABLE = {
+  1:[2,0,0,0,0,0,0,0,0],  2:[3,0,0,0,0,0,0,0,0],  3:[4,2,0,0,0,0,0,0,0],
+  4:[4,3,0,0,0,0,0,0,0],  5:[4,3,2,0,0,0,0,0,0],  6:[4,3,3,0,0,0,0,0,0],
+  7:[4,3,3,1,0,0,0,0,0],  8:[4,3,3,2,0,0,0,0,0],  9:[4,3,3,3,1,0,0,0,0],
+ 10:[4,3,3,3,2,0,0,0,0], 11:[4,3,3,3,2,1,0,0,0], 12:[4,3,3,3,2,1,0,0,0],
+ 13:[4,3,3,3,2,1,1,0,0], 14:[4,3,3,3,2,1,1,0,0], 15:[4,3,3,3,2,1,1,1,0],
+ 16:[4,3,3,3,2,1,1,1,0], 17:[4,3,3,3,2,1,1,1,1], 18:[4,3,3,3,3,1,1,1,1],
+ 19:[4,3,3,3,3,2,1,1,1], 20:[4,3,3,3,3,2,2,1,1]
+};
+const PROF = lvl => Math.ceil(lvl / 4) + 1;
+const WS_CR = lvl => lvl < 2 ? 0 : Math.max(1, Math.floor(lvl / 3)); // Círculo da Lua
+const mod = n => Math.floor((n - 10) / 2);
+const PREP_MAX = () => Math.max(1, S.level + mod(S.abilities.SAB)); // druida: nível + mod SAB
+
 const DEFAULTS = () => ({
+  level: 18,
   hp:{current:100,max:100,temp:0},
   pools:[],
-  slots:[{lvl:1,max:4,used:0},{lvl:2,max:3,used:0},{lvl:3,max:3,used:0},{lvl:4,max:3,used:0},
-         {lvl:5,max:3,used:0},{lvl:6,max:1,used:0},{lvl:7,max:1,used:0},{lvl:8,max:1,used:0},{lvl:9,max:1,used:0}],
-  wildShape:{used:0,max:2},
+  slotsUsed:[0,0,0,0,0,0,0,0,0],
+  wildShape:{used:0},
   feyUsed:false,
   deathSaves:{s:0,f:0},
   abilities:{FOR:10,DES:14,CON:16,INT:12,SAB:20,CAR:10},
-  profBonus:6,
   saveProfs:{INT:true,SAB:true},
-  ac:18, maxPrepared:23,
+  ac:18,
   prepared:DEFAULT_PREPARED.slice(),
   customSpells:[]
 });
@@ -152,10 +169,27 @@ let amt = 5;
 let filter = "all";
 let storageOK = true;
 
+function normalize() {
+  S.level = Math.max(1, Math.min(20, S.level || 18));
+  // migração da versão antiga (slots como [{lvl,max,used}])
+  if (Array.isArray(S.slots)) {
+    S.slotsUsed = [0,0,0,0,0,0,0,0,0];
+    S.slots.forEach(s => { if (s.lvl >= 1 && s.lvl <= 9) S.slotsUsed[s.lvl-1] = s.used || 0; });
+    delete S.slots;
+  }
+  if (!Array.isArray(S.slotsUsed)) S.slotsUsed = [0,0,0,0,0,0,0,0,0];
+  const maxes = SLOT_TABLE[S.level];
+  S.slotsUsed = S.slotsUsed.map((u, i) => Math.max(0, Math.min(maxes[i], u || 0)));
+  const wsMax = S.level >= 20 ? Infinity : 2;
+  if (wsMax !== Infinity) S.wildShape.used = Math.max(0, Math.min(2, S.wildShape.used || 0));
+  else S.wildShape.used = 0;
+}
+
 try {
   const raw = localStorage.getItem(KEY);
   if (raw) S = Object.assign(DEFAULTS(), JSON.parse(raw));
 } catch (e) { storageOK = false; }
+normalize();
 
 let saveTimer = null;
 function save() {
@@ -174,10 +208,9 @@ function save() {
     }
   }, 300);
 }
-function set(patch) { Object.assign(S, patch); save(); render(); }
+function set(patch) { Object.assign(S, patch); normalize(); save(); render(); }
 
 /* ================= HELPERS ================= */
-const mod = n => Math.floor((n - 10) / 2);
 const fm = n => (n >= 0 ? "+" : "") + n;
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const moonSVG = (filled, size) =>
@@ -203,19 +236,13 @@ function poolHp(id, d) {
   set({pools: S.pools.map(p => p.id === id
     ? {...p, current: Math.max(0, Math.min(p.max, p.current + d))} : p)});
 }
-function toggleSlots(arrKey, lvl, i) {
-  set({slots: S.slots.map(s => {
-    if (s.lvl !== lvl) return s;
-    const avail = s.max - s.used;
-    return {...s, used: Math.max(0, Math.min(s.max, i < avail ? s.used + 1 : s.used - 1))};
-  })});
-}
 
 /* ================= TELAS ================= */
 function combatTab() {
   const {hp} = S;
   const pct = hp.max > 0 ? Math.round(hp.current / hp.max * 100) : 0;
   const col = pct > 50 ? "var(--green)" : pct > 25 ? "var(--moon)" : "var(--red)";
+  const wsMax = S.level >= 20 ? Infinity : 2;
   let h = "";
 
   h += `<div class="card">
@@ -243,27 +270,32 @@ function combatTab() {
     h += `<div class="hint" style="margin-top:10px">Adicione uma barra ao virar besta ou elemental.
           Sua vida principal fica intacta aqui em cima.</div>`;
   S.pools.forEach(p => {
-    const pp = Math.round(p.current / p.max * 100);
+    const pp = p.max > 0 ? Math.round(p.current / p.max * 100) : 0;
     const pc = pp > 25 ? "var(--green)" : "var(--red)";
-    h += `<div style="margin-bottom:14px">
+    h += `<div style="margin-bottom:16px">
       <div class="row"><span style="font-family:var(--serif);font-size:17px">${esc(p.name)}</span>
-        <span style="display:flex;align-items:center;gap:10px">
-          <span style="font-variant-numeric:tabular-nums;color:${pp>25?'var(--text)':'var(--red)'}">${p.current}/${p.max}</span>
-          <button data-act="delpool:${p.id}" style="background:none;border:none;color:var(--muted);font-size:18px;padding:2px 6px">✕</button>
-        </span></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-        <button data-act="pool-:${p.id}" style="width:46px;height:38px;border-radius:10px;border:none;font-size:20px;background:rgba(229,107,111,.18);color:var(--red)">−</button>
-        <div class="bar" style="flex:1;margin:0"><div style="width:${pp}%;background:${pc}"></div></div>
-        <button data-act="pool+:${p.id}" style="width:46px;height:38px;border-radius:10px;border:none;font-size:20px;background:rgba(127,176,105,.18);color:var(--green)">+</button>
-      </div></div>`;
+        <button data-act="delpool:${p.id}" style="background:none;border:none;color:var(--muted);font-size:18px;padding:2px 6px">✕</button></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <button data-act="pool-:${p.id}" style="width:46px;height:42px;border-radius:10px;border:none;font-size:20px;background:rgba(229,107,111,.18);color:var(--red)">−</button>
+        ${num("poolcur:"+p.id, p.current, 64)}
+        <span style="color:var(--muted)">/</span>
+        ${num("poolmax:"+p.id, p.max, 64)}
+        <button data-act="pool+:${p.id}" style="width:46px;height:42px;border-radius:10px;border:none;font-size:20px;background:rgba(127,176,105,.18);color:var(--green)">+</button>
+      </div>
+      <div class="bar" style="margin:8px 0 0"><div style="width:${pp}%;background:${pc}"></div></div>
+      <div class="hint" style="margin-top:4px">− e + usam a quantidade selecionada em cima · ou digite direto nos campos</div>
+    </div>`;
   });
   h += `</div>`;
 
   h += `<div class="card">
-    <div class="row"><span class="lbl">Wild Shape</span><div style="display:flex">
-      ${Array.from({length:S.wildShape.max},(_,i)=>
-        `<button class="moon" data-act="ws:${i}">${moonSVG(i < S.wildShape.max - S.wildShape.used, 30)}</button>`).join("")}
-    </div></div>
+    <div class="row"><span class="lbl">Wild Shape</span>
+      ${wsMax === Infinity
+        ? `<span style="font-family:var(--serif);font-size:18px;color:var(--moon)">∞ Arquidruida</span>`
+        : `<div style="display:flex">${Array.from({length:2},(_,i)=>
+            `<button class="moon" data-act="ws:${i}">${moonSVG(i < 2 - S.wildShape.used, 30)}</button>`).join("")}</div>`}
+    </div>
+    <div class="hint" style="margin-top:6px">CR máximo da forma: ${WS_CR(S.level)}${S.level>=10?" · elementais liberados":""}</div>
     <div class="row" style="margin-top:12px">
       <span style="font-size:14px;color:var(--muted)">Fey Touched (1/dia)</span>
       <button data-act="fey" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
@@ -272,6 +304,7 @@ function combatTab() {
     <div style="display:flex;gap:10px;margin-top:14px">
       <button class="big" data-act="short" style="background:var(--soft);color:var(--text);border:1px solid var(--line);font-weight:400;font-size:15px">Descanso curto</button>
       <button class="big" data-act="long" style="background:var(--moon);color:#1A1A10;font-size:15px">Descanso longo</button></div>
+    <div class="hint" id="restmsg" style="margin-top:8px;text-align:center;color:var(--green);visibility:hidden">✓</div>
   </div>`;
 
   h += `<div class="card"><span class="lbl">Testes contra a morte</span>
@@ -287,35 +320,44 @@ function combatTab() {
 }
 
 function spellsTab() {
+  const maxes = SLOT_TABLE[S.level];
   let h = "";
   h += `<div class="card">
-    <div class="row" style="margin-bottom:8px"><span class="lbl">Espaços de magia</span>
-      <span class="hint">toque na lua p/ gastar · de novo p/ devolver</span></div>`;
-  S.slots.forEach(s => {
+    <div class="row" style="margin-bottom:8px"><span class="lbl">Espaços de magia · nível ${S.level}</span>
+      <span class="hint">toque na lua p/ gastar</span></div>`;
+  maxes.forEach((mx, idx) => {
+    if (mx === 0) return;
+    const used = S.slotsUsed[idx];
     h += `<div class="row" style="padding:3px 0">
-      <span style="font-family:var(--serif);font-size:16px;width:34px;color:${s.used>=s.max?'var(--muted)':'var(--text)'}">${s.lvl}º</span>
+      <span style="font-family:var(--serif);font-size:16px;width:34px;color:${used>=mx?'var(--muted)':'var(--text)'}">${idx+1}º</span>
       <div style="display:flex;flex-wrap:wrap;justify-content:flex-end">
-        ${Array.from({length:s.max},(_,i)=>
-          `<button class="moon" data-act="slot:${s.lvl}:${i}">${moonSVG(i < s.max - s.used, 26)}</button>`).join("")}
+        ${Array.from({length:mx},(_,i)=>
+          `<button class="moon" data-act="slot:${idx}:${i}">${moonSVG(i < mx - used, 26)}</button>`).join("")}
       </div></div>`;
   });
   h += `</div>`;
 
-  const n = S.prepared.length;
+  const n = S.prepared.length, pm = PREP_MAX();
   h += `<div class="card">
     <div class="row"><span class="lbl">Preparadas</span>
-      <span style="display:flex;align-items:center;gap:6px">
-        <span style="font-family:var(--serif);font-size:20px;color:${n>S.maxPrepared?'var(--red)':'var(--green)'}">${n}</span>
-        <span style="color:var(--muted)">/</span>${num("maxPrepared", S.maxPrepared, 52)}</span></div>
+      <span style="display:flex;align-items:baseline;gap:6px">
+        <span style="font-family:var(--serif);font-size:20px;color:${n>pm?'var(--red)':'var(--green)'}">${n}</span>
+        <span style="color:var(--muted)">/ ${pm}</span></span></div>
+    <div class="hint" style="margin-top:4px">limite = nível ${S.level} + mod. SAB ${fm(mod(S.abilities.SAB))} (automático)</div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="amt ${filter==='all'?'on':''}" data-act="filter:all" style="${filter==='all'?'background:var(--green);color:#0C1120':''}">Todas</button>
-      <button class="amt ${filter==='prepared'?'on':''}" data-act="filter:prepared" style="${filter==='prepared'?'background:var(--green);color:#0C1120':''}">Só preparadas</button></div>
+      <button class="amt" data-act="filter:all" style="${filter==='all'?'background:var(--green);color:#0C1120':''}">Todas</button>
+      <button class="amt" data-act="filter:prepared" style="${filter==='prepared'?'background:var(--green);color:#0C1120':''}">Só preparadas</button></div>
     <div class="hint" style="margin-top:12px">Truques: ${CANTRIPS.join(" · ")}</div>
     <div style="margin-top:6px;font-size:13px;color:var(--moon)">Fey Touched (sempre prontas): ${FEY.join(" · ")}</div>
   </div>`;
 
+  const maxSpellLvl = maxes.reduce((acc, m, i) => m > 0 ? i + 1 : acc, 0);
   Object.keys(SPELLS).forEach(k => {
     const lvl = +k;
+    if (lvl > maxSpellLvl && filter !== "prepared") {
+      // nível ainda sem slot: esconde para não poluir
+      return;
+    }
     let list = SPELLS[lvl].map(nm => ({name:nm, custom:false}))
       .concat(S.customSpells.filter(c => c.lvl === lvl).map(c => ({name:c.name, custom:true, id:c.id})));
     if (filter === "prepared") list = list.filter(x => S.prepared.includes(x.name));
@@ -339,12 +381,23 @@ function spellsTab() {
 
 function sheetTab() {
   const wis = mod(S.abilities.SAB);
-  const dc = 8 + S.profBonus + wis, atk = S.profBonus + wis;
+  const prof = PROF(S.level);
+  const dc = 8 + prof + wis, atk = prof + wis;
   let h = `<div class="card">
+    <div class="row"><span class="lbl">Nível do personagem</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="stepbtn" data-act="lvl:-1">−</button>
+        <span style="font-family:var(--serif);font-size:34px;color:var(--moon);min-width:44px;text-align:center">${S.level}</span>
+        <button class="stepbtn" data-act="lvl:1">+</button>
+      </div></div>
+    <div class="hint" style="margin-top:8px">Ao subir de nível, slots, proficiência, limite de preparadas e Wild Shape acompanham sozinhos. Só a vida máxima você ajusta na mão (depende dos dados rolados).</div>
+  </div>`;
+
+  h += `<div class="card">
     <div style="display:flex;justify-content:space-around;text-align:center">
       <div><div class="lbl">CD</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${dc}</div></div>
       <div><div class="lbl">Ataque</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${fm(atk)}</div></div>
-      <div><div class="lbl">Prof.</div><div style="margin-top:5px">${num("profBonus", S.profBonus, 54)}</div></div>
+      <div><div class="lbl">Prof.</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${fm(prof)}</div></div>
       <div><div class="lbl">CA</div><div style="margin-top:5px">${num("ac", S.ac, 54)}</div></div>
     </div></div>`;
 
@@ -358,7 +411,7 @@ function sheetTab() {
 
   h += `<div class="card"><span class="lbl">Salvaguardas</span><div style="margin-top:6px">
     ${ABILS.map(a => {
-      const p = !!S.saveProfs[a], t = mod(S.abilities[a]) + (p ? S.profBonus : 0);
+      const p = !!S.saveProfs[a], t = mod(S.abilities[a]) + (p ? prof : 0);
       return `<button class="saverow" data-act="save:${a}">
         <span><span class="check ${p?'on':''}"></span>${ABIL_FULL[a]}</span>
         <span style="font-family:var(--serif);font-size:18px;color:${p?'var(--moon)':'var(--muted)'}">${fm(t)}</span>
@@ -376,23 +429,31 @@ function sheetTab() {
   h += `<button class="danger" data-act="reset">Restaurar ficha padrão</button>`;
   if (!storageOK)
     h += `<div class="hint" style="color:var(--red);text-align:center">Este navegador bloqueou o salvamento.
-          Abra o arquivo no Safari (Arquivos → tocar no arquivo → Compartilhar → Safari).</div>`;
+          Abra pelo Safari / tela de início.</div>`;
   return h;
 }
 
 /* ================= RENDER ================= */
 function render() {
+  const y = window.scrollY; // preserva a posição — corrige o "pulo" da página
   document.getElementById("app").innerHTML =
     tab === "combat" ? combatTab() : tab === "spells" ? spellsTab() : sheetTab();
   document.querySelectorAll("nav button").forEach(b =>
     b.classList.toggle("on", b.dataset.tab === tab));
-  window.scrollTo(0, scrollMemo[tab] || 0);
+  document.getElementById("subtitle").textContent =
+    `Druida · Círculo da Lua · nível ${S.level}`;
+  window.scrollTo(0, y);
 }
 const scrollMemo = {};
 
 /* ================= EVENTOS ================= */
 document.querySelectorAll("nav button").forEach(b =>
-  b.addEventListener("click", () => { scrollMemo[tab] = window.scrollY; tab = b.dataset.tab; render(); }));
+  b.addEventListener("click", () => {
+    scrollMemo[tab] = window.scrollY;
+    tab = b.dataset.tab;
+    render();
+    window.scrollTo(0, scrollMemo[tab] || 0);
+  }));
 
 let pressTimer = null, longPressed = false;
 document.getElementById("app").addEventListener("touchstart", e => {
@@ -407,6 +468,14 @@ document.getElementById("app").addEventListener("touchstart", e => {
 }, {passive:true});
 ["touchend","touchmove","touchcancel"].forEach(ev =>
   document.getElementById("app").addEventListener(ev, () => clearTimeout(pressTimer), {passive:true}));
+
+function flashRest(msg) {
+  const el = document.getElementById("restmsg");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.visibility = "visible";
+  setTimeout(() => { const e2 = document.getElementById("restmsg"); if (e2) e2.style.visibility = "hidden"; }, 1800);
+}
 
 document.getElementById("app").addEventListener("click", e => {
   const el = e.target.closest("[data-act]");
@@ -425,20 +494,29 @@ document.getElementById("app").addEventListener("click", e => {
   if (act === "pool-") return poolHp(+a, -amt);
   if (act === "pool+") return poolHp(+a, amt);
   if (act === "ws") {
-    const avail = S.wildShape.max - S.wildShape.used;
+    const avail = 2 - S.wildShape.used;
     const u = +a < avail ? S.wildShape.used + 1 : S.wildShape.used - 1;
-    return set({wildShape:{...S.wildShape, used: Math.max(0, Math.min(S.wildShape.max, u))}});
+    return set({wildShape:{used: Math.max(0, Math.min(2, u))}});
   }
   if (act === "fey") return set({feyUsed: !S.feyUsed});
-  if (act === "short") return set({wildShape:{...S.wildShape, used:0}});
-  if (act === "long") return set({
-    wildShape:{...S.wildShape, used:0}, feyUsed:false, deathSaves:{s:0,f:0},
-    slots: S.slots.map(s => ({...s, used:0}))});
+  if (act === "short") { set({wildShape:{used:0}}); return flashRest("Descanso curto: Wild Shape recuperado"); }
+  if (act === "long") {
+    set({wildShape:{used:0}, feyUsed:false, deathSaves:{s:0,f:0},
+         slotsUsed:[0,0,0,0,0,0,0,0,0]});
+    return flashRest("Descanso longo: slots, Wild Shape e Fey Touched recuperados");
+  }
   if (act === "ds") {
     const cur = S.deathSaves[a], v = +b;
     return set({deathSaves:{...S.deathSaves, [a]: cur === v + 1 ? v : v + 1}});
   }
-  if (act === "slot") return toggleSlots(null, +a, +b);
+  if (act === "slot") {
+    const idx = +a, mx = SLOT_TABLE[S.level][idx];
+    const used = S.slotsUsed[idx], avail = mx - used;
+    const nu = +b < avail ? used + 1 : used - 1;
+    const arr = S.slotsUsed.slice();
+    arr[idx] = Math.max(0, Math.min(mx, nu));
+    return set({slotsUsed: arr});
+  }
   if (act === "filter") { filter = a; return render(); }
   if (act === "prep") {
     const nm = decodeURIComponent(a);
@@ -449,6 +527,7 @@ document.getElementById("app").addEventListener("click", e => {
     const nm = prompt("Nome da magia (nível " + a + ")"); if (!nm) return;
     return set({customSpells: S.customSpells.concat({id: Date.now(), lvl: +a, name: nm})});
   }
+  if (act === "lvl") return set({level: S.level + (+a)});
   if (act === "save") return set({saveProfs:{...S.saveProfs, [a]: !S.saveProfs[a]}});
   if (act === "copy") {
     const t = document.getElementById("backup");
@@ -462,17 +541,17 @@ document.getElementById("app").addEventListener("click", e => {
     try {
       const parsed = JSON.parse(t.value);
       if (!confirm("Substituir a ficha atual por este texto?")) return;
-      S = Object.assign(DEFAULTS(), parsed); save(); render();
+      S = Object.assign(DEFAULTS(), parsed); normalize(); save(); render();
     } catch (err) { alert("O texto não é um backup válido."); }
     return;
   }
   if (act === "reset") {
     if (!confirm("Restaurar tudo para o padrão? Isso apaga o que está salvo.")) return;
-    S = DEFAULTS(); save(); render();
+    S = DEFAULTS(); normalize(); save(); render();
   }
 });
 
-// campos numéricos: aplicam ao sair do campo
+// campos numéricos: aplicam ao confirmar/sair do campo
 document.getElementById("app").addEventListener("change", e => {
   const el = e.target.closest("[data-num]");
   if (!el) return;
@@ -484,9 +563,11 @@ document.getElementById("app").addEventListener("change", e => {
     const mx = Math.max(1, v);
     return set({hp:{...S.hp, max: mx, current: Math.min(S.hp.current, mx)}});
   }
+  if (k === "poolcur") return set({pools: S.pools.map(p => p.id == a
+    ? {...p, current: Math.max(0, Math.min(p.max, v))} : p)});
+  if (k === "poolmax") return set({pools: S.pools.map(p => p.id == a
+    ? {...p, max: Math.max(1, v), current: Math.min(p.current, Math.max(1, v))} : p)});
   if (k === "abil") return set({abilities:{...S.abilities, [a]: v}});
-  if (k === "maxPrepared") return set({maxPrepared: Math.max(1, v)});
-  if (k === "profBonus") return set({profBonus: v});
   if (k === "ac") return set({ac: v});
 });
 document.getElementById("app").addEventListener("focus", e => {
