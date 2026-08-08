@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0C1120">
+<title>Habib — Ficha</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+<style>
+  :root{
+    --bg:#0C1120; --card:#161D33; --soft:#1C2440; --line:rgba(237,241,248,.10);
+    --text:#EDF1F8; --muted:#8A93AB; --moon:#E9D8A6; --moondim:#3A4160;
+    --green:#7FB069; --red:#E56B6F;
+    --serif:'Iowan Old Style',Palatino,Georgia,serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;
+    -webkit-text-size-adjust:100%}
+  button{font-family:inherit;cursor:pointer}
+  input{font-family:inherit}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);
+    border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
+    display:flex;justify-content:space-between;align-items:center}
+  .name{font-family:var(--serif);font-size:21px}
+  .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .dot{width:7px;height:7px;border-radius:4px;background:var(--green);margin-left:6px;transition:background .3s}
+  .dot.saving{background:var(--moon)}
+  main{padding:14px 14px 100px;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .row{display:flex;justify-content:space-between;align-items:center}
+  input[type=number]{width:64px;background:var(--soft);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:8px 6px;font-size:17px;text-align:center;font-variant-numeric:tabular-nums;
+    -moz-appearance:textfield}
+  input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .hpnum{font-family:var(--serif);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+  .bar{height:6px;border-radius:3px;background:var(--moondim);overflow:hidden;margin:10px 0 14px}
+  .bar>div{height:100%;transition:width .25s}
+  .amt{flex:1;padding:9px 0;border-radius:10px;font-size:15px;font-weight:600;background:var(--soft);
+    color:var(--text);border:1px solid var(--line)}
+  .amt.on{background:var(--moon);color:#1A1A10}
+  .big{flex:1;padding:15px 0;border-radius:12px;font-size:16px;font-weight:700;border:none}
+  .moon{background:none;border:none;padding:4px;line-height:0}
+  .pill{padding:8px 12px;border-radius:999px;font-size:14px;line-height:1.2;background:var(--soft);
+    color:var(--muted);border:1px solid var(--line)}
+  .pill.on{background:rgba(127,176,105,.20);color:var(--green);border-color:rgba(127,176,105,.6)}
+  .pill.custom{font-style:italic}
+  .ghost{background:var(--soft);color:var(--moon);border:1px solid var(--line);border-radius:10px;
+    padding:6px 12px;font-size:14px}
+  .abil{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
+  .saverow{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;
+    border:none;border-bottom:1px solid var(--line);padding:11px 2px;color:var(--text);font-size:15px}
+  .check{width:14px;height:14px;border-radius:7px;border:2px solid var(--moon);display:inline-block;
+    vertical-align:-2px;margin-right:10px}
+  .check.on{background:var(--moon)}
+  .ds{width:20px;height:20px;border-radius:10px;border:2px solid;background:transparent}
+  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(12,17,32,.96);
+    backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--muted);font-size:11px;
+    display:flex;flex-direction:column;align-items:center;gap:3px}
+  nav button.on{color:var(--moon)}
+  .danger{padding:13px 0;border-radius:12px;background:rgba(229,107,111,.12);color:var(--red);
+    border:1px solid rgba(229,107,111,.4);font-size:14px;width:100%}
+  textarea{width:100%;height:150px;background:var(--soft);color:var(--text);border:1px solid var(--line);
+    border-radius:10px;padding:10px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  .hint{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="name">Habib Esphyrr Uneno V'Ent</div>
+    <div class="sub">Druida · Círculo da Lua · nível 18</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px">
+    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 3a9 9 0 1 0 0 18 7 9 0 0 1 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#E9D8A6"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 3a9 9 0 1 1 0 18 7 9 0 0 0 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
+    <span class="dot" id="dot"></span>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<nav>
+  <button data-tab="combat" class="on">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M19 14c1.5-1.5 2-3.4 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.6.5 3.5 2 5l7 7z"/></svg>
+    Combate
+  </button>
+  <button data-tab="spells">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    Magias
+  </button>
+  <button data-tab="sheet">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Ficha
+  </button>
+</nav>
+
+<script>
+"use strict";
+
+/* ================= DADOS DA FICHA ================= */
+const SPELLS = {
+1:["Absorb Elements","Animal Friendship","Beast Bond","Charm Person","Create or Destroy Water","Cure Wounds","Detect Magic","Detect Poison and Disease","Earth Tremor","Endurance","Entangle","Faerie Fire","Fog Cloud","Goodberry","Healing Word","Heavy Blow","Ice Knife","Jump","Longstrider","Purify Food and Drink","Snare","Speak with Animals","Starlight Shroud","Thunderwave"],
+2:["Air Bubble","Alter Self","Animal Messenger","Aura of Shade","Barkskin","Beast Sense","Darkvision","Dome of Night","Dust Devil","Earth Ripple","Earthbind","Enhance Ability","Find Traps","Flame Blade","Flaming Sphere","Gust of Wind","Healing Spirit","Heat Metal","Hold Person","Lesser Restoration","Locate Animals or Plants","Locate Object","Mend Wounds","Moonbeam","Pass without Trace","Protection from Poison","Skywrite","Spike Growth","Summon Beast","Ultraviolet Pulse","Warding Wind","Wither and Bloom"],
+3:["Boil","Call Lightning","Circle of Smothering","Conjure Animals","Daylight","Dispel Magic","Erupting Earth","Feign Death","Flame Arrows","Flaming Serpent","Holy Rain","Icy Ring","Meld into Stone","Plant Growth","Protection from Energy","Sleet Storm","Speak with Plants","Summon Fey","Tidal Wave","Wall of Water","Water Breathing","Water Walk","Wind Wall"],
+4:["Blight","Charm Monster","Confusion","Conjure Minor Elementals","Conjure Woodland Beings","Control Water","Dominate Beast","Elemental Bane","Field of Stars","Freedom of Movement","Giant Insect","Grasping Vine","Guardian of Nature","Hallucinatory Terrain","Ice Storm","Ionizing Wind","Locate Creature","Orbital Stones","Polymorph","Rary's Rapid Replication","Seeking Sunfire","Stone Shape","Stoneskin","Summon Elemental","Wall of Fire","Watery Sphere"],
+5:["Antilife Shell","Awaken","Commune with Nature","Conjure Elemental","Contagion","Control Winds","Destructive Impact","Geas","Greater Restoration","Insect Plague","Maelstrom","Mass Cure Wounds","Navigator's Map","Planar Binding","Reincarnate","Scrying","Shadow Stride","Summon Draconic Spirit","Transmute Rock","Tree Stride","Wall of Stone","Wrath of Nature"],
+6:["Bones of the Earth","Conjure Fey","Druid Grove","Find the Path","Heal","Heroes' Feast","Intensify Gravity","Investiture of Flame","Investiture of Ice","Investiture of Stone","Investiture of Wind","Move Earth","Primordial Ward","Sheltering Light","Sunbeam","Transport via Plants","Wall of Thorns","Wind Walk"],
+7:["Draconic Transformation","Encroaching Lava","Fire Storm","Mirage Arcane","Plane Shift","Regenerate","Restoration","Reverse Gravity","Whirlwind"],
+8:["Animal Shapes","Antipathy/Sympathy","Black Hole","Control Weather","Druidic Avatar","Earthquake","Feeblemind","Moonfall","Sunburst","Tsunami"],
+9:["Foresight","Night Sky","Shapechange","Storm of Vengeance","True Resurrection"]};
+const CANTRIPS = ["Guidance","Primal Savagery","Produce Flame","Thorn Whip"];
+const FEY = ["Silvery Barbs (1º)","Misty Step (2º)"];
+const DEFAULT_PREPARED = ["Absorb Elements","Healing Word","Moonbeam","Healing Spirit","Pass without Trace","Hold Person","Wither and Bloom","Conjure Animals","Dispel Magic","Polymorph","Guardian of Nature","Ice Storm","Summon Draconic Spirit","Mass Cure Wounds","Scrying","Heal","Regenerate","Draconic Transformation","Fire Storm","Black Hole","Earthquake","Storm of Vengeance","True Resurrection"];
+const ABILS = ["FOR","DES","CON","INT","SAB","CAR"];
+const ABIL_FULL = {FOR:"Força",DES:"Destreza",CON:"Constituição",INT:"Inteligência",SAB:"Sabedoria",CAR:"Carisma"};
+
+const DEFAULTS = () => ({
+  hp:{current:100,max:100,temp:0},
+  pools:[],
+  slots:[{lvl:1,max:4,used:0},{lvl:2,max:3,used:0},{lvl:3,max:3,used:0},{lvl:4,max:3,used:0},
+         {lvl:5,max:3,used:0},{lvl:6,max:1,used:0},{lvl:7,max:1,used:0},{lvl:8,max:1,used:0},{lvl:9,max:1,used:0}],
+  wildShape:{used:0,max:2},
+  feyUsed:false,
+  deathSaves:{s:0,f:0},
+  abilities:{FOR:10,DES:14,CON:16,INT:12,SAB:20,CAR:10},
+  profBonus:6,
+  saveProfs:{INT:true,SAB:true},
+  ac:18, maxPrepared:23,
+  prepared:DEFAULT_PREPARED.slice(),
+  customSpells:[]
+});
+
+/* ================= ESTADO E PERSISTÊNCIA ================= */
+const KEY = "habib-ficha-v1";
+let S = DEFAULTS();
+let tab = "combat";
+let amt = 5;
+let filter = "all";
+let storageOK = true;
+
+try {
+  const raw = localStorage.getItem(KEY);
+  if (raw) S = Object.assign(DEFAULTS(), JSON.parse(raw));
+} catch (e) { storageOK = false; }
+
+let saveTimer = null;
+function save() {
+  const dot = document.getElementById("dot");
+  dot.classList.add("saving");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(S));
+      storageOK = true;
+      dot.classList.remove("saving");
+    } catch (e) {
+      storageOK = false;
+      dot.style.background = "var(--red)";
+      dot.classList.remove("saving");
+    }
+  }, 300);
+}
+function set(patch) { Object.assign(S, patch); save(); render(); }
+
+/* ================= HELPERS ================= */
+const mod = n => Math.floor((n - 10) / 2);
+const fm = n => (n >= 0 ? "+" : "") + n;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const moonSVG = (filled, size) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24">
+     <circle cx="12" cy="12" r="9" fill="${filled?'#E9D8A6':'#3A4160'}"
+       stroke="${filled?'#E9D8A6':'rgba(233,216,166,.35)'}" stroke-width="1.5"/>
+     ${filled?'<circle cx="9.5" cy="9" r="2" fill="rgba(12,17,32,.18)"/>':''}
+   </svg>`;
+const num = (act, val, w) =>
+  `<input type="number" inputmode="numeric" value="${val}" data-num="${act}" style="width:${w||64}px">`;
+
+/* ================= AÇÕES ================= */
+function applyHp(d) {
+  let {current, temp, max} = S.hp;
+  if (d < 0) {
+    let dmg = -d, fromTemp = Math.min(temp, dmg);
+    temp -= fromTemp; dmg -= fromTemp;
+    current = Math.max(0, current - dmg);
+  } else current = Math.min(max, current + d);
+  set({hp:{current, temp, max}});
+}
+function poolHp(id, d) {
+  set({pools: S.pools.map(p => p.id === id
+    ? {...p, current: Math.max(0, Math.min(p.max, p.current + d))} : p)});
+}
+function toggleSlots(arrKey, lvl, i) {
+  set({slots: S.slots.map(s => {
+    if (s.lvl !== lvl) return s;
+    const avail = s.max - s.used;
+    return {...s, used: Math.max(0, Math.min(s.max, i < avail ? s.used + 1 : s.used - 1))};
+  })});
+}
+
+/* ================= TELAS ================= */
+function combatTab() {
+  const {hp} = S;
+  const pct = hp.max > 0 ? Math.round(hp.current / hp.max * 100) : 0;
+  const col = pct > 50 ? "var(--green)" : pct > 25 ? "var(--moon)" : "var(--red)";
+  let h = "";
+
+  h += `<div class="card">
+    <div class="row"><span class="lbl">Pontos de vida</span>
+      <span style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px">
+        temp ${num("hp.temp", hp.temp, 52)}</span></div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 0">
+      <span class="hpnum" style="color:${col}">${hp.current}</span>
+      ${hp.temp>0?`<span style="font-size:20px;color:#9FC5E8">+${hp.temp}</span>`:""}
+      <span style="color:var(--muted);font-size:18px">/</span>${num("hp.max", hp.max, 72)}</div>
+    <div class="bar"><div style="width:${pct}%;background:${col}"></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      ${[1,5,10].map(n=>`<button class="amt ${amt===n?'on':''}" data-act="amt:${n}">${n}</button>`).join("")}
+      ${num("amt", amt, 64)}</div>
+    <div style="display:flex;gap:10px">
+      <button class="big" data-act="dmg" style="background:var(--red);color:#fff">− Dano</button>
+      <button class="big" data-act="heal" style="background:var(--green);color:#0C1120">+ Cura</button></div>
+  </div>`;
+
+  h += `<div class="card">
+    <div class="row" style="margin-bottom:${S.pools.length?12:0}px">
+      <span class="lbl">Vidas extras · formas</span>
+      <button class="ghost" data-act="addpool">+ Forma</button></div>`;
+  if (!S.pools.length)
+    h += `<div class="hint" style="margin-top:10px">Adicione uma barra ao virar besta ou elemental.
+          Sua vida principal fica intacta aqui em cima.</div>`;
+  S.pools.forEach(p => {
+    const pp = Math.round(p.current / p.max * 100);
+    const pc = pp > 25 ? "var(--green)" : "var(--red)";
+    h += `<div style="margin-bottom:14px">
+      <div class="row"><span style="font-family:var(--serif);font-size:17px">${esc(p.name)}</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          <span style="font-variant-numeric:tabular-nums;color:${pp>25?'var(--text)':'var(--red)'}">${p.current}/${p.max}</span>
+          <button data-act="delpool:${p.id}" style="background:none;border:none;color:var(--muted);font-size:18px;padding:2px 6px">✕</button>
+        </span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <button data-act="pool-:${p.id}" style="width:46px;height:38px;border-radius:10px;border:none;font-size:20px;background:rgba(229,107,111,.18);color:var(--red)">−</button>
+        <div class="bar" style="flex:1;margin:0"><div style="width:${pp}%;background:${pc}"></div></div>
+        <button data-act="pool+:${p.id}" style="width:46px;height:38px;border-radius:10px;border:none;font-size:20px;background:rgba(127,176,105,.18);color:var(--green)">+</button>
+      </div></div>`;
+  });
+  h += `</div>`;
+
+  h += `<div class="card">
+    <div class="row"><span class="lbl">Wild Shape</span><div style="display:flex">
+      ${Array.from({length:S.wildShape.max},(_,i)=>
+        `<button class="moon" data-act="ws:${i}">${moonSVG(i < S.wildShape.max - S.wildShape.used, 30)}</button>`).join("")}
+    </div></div>
+    <div class="row" style="margin-top:12px">
+      <span style="font-size:14px;color:var(--muted)">Fey Touched (1/dia)</span>
+      <button data-act="fey" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
+        border:1px solid var(--line);background:${S.feyUsed?'var(--moondim)':'rgba(233,216,166,.15)'};
+        color:${S.feyUsed?'var(--muted)':'var(--moon)'}">${S.feyUsed?"Usado":"Disponível"}</button></div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="big" data-act="short" style="background:var(--soft);color:var(--text);border:1px solid var(--line);font-weight:400;font-size:15px">Descanso curto</button>
+      <button class="big" data-act="long" style="background:var(--moon);color:#1A1A10;font-size:15px">Descanso longo</button></div>
+  </div>`;
+
+  h += `<div class="card"><span class="lbl">Testes contra a morte</span>
+    <div style="display:flex;justify-content:space-around;margin-top:10px">
+    ${[["s","Sucessos","var(--green)"],["f","Falhas","var(--red)"]].map(([k,lbl,c])=>`
+      <div style="text-align:center"><div style="font-size:13px;color:${c};margin-bottom:4px">${lbl}</div>
+      <div style="display:flex">${[0,1,2].map(i=>
+        `<button data-act="ds:${k}:${i}" style="background:none;border:none;padding:5px">
+          <span class="ds" style="border-color:${c};background:${i<S.deathSaves[k]?c:'transparent'};display:block"></span>
+        </button>`).join("")}</div></div>`).join("")}
+    </div></div>`;
+  return h;
+}
+
+function spellsTab() {
+  let h = "";
+  h += `<div class="card">
+    <div class="row" style="margin-bottom:8px"><span class="lbl">Espaços de magia</span>
+      <span class="hint">toque na lua p/ gastar · de novo p/ devolver</span></div>`;
+  S.slots.forEach(s => {
+    h += `<div class="row" style="padding:3px 0">
+      <span style="font-family:var(--serif);font-size:16px;width:34px;color:${s.used>=s.max?'var(--muted)':'var(--text)'}">${s.lvl}º</span>
+      <div style="display:flex;flex-wrap:wrap;justify-content:flex-end">
+        ${Array.from({length:s.max},(_,i)=>
+          `<button class="moon" data-act="slot:${s.lvl}:${i}">${moonSVG(i < s.max - s.used, 26)}</button>`).join("")}
+      </div></div>`;
+  });
+  h += `</div>`;
+
+  const n = S.prepared.length;
+  h += `<div class="card">
+    <div class="row"><span class="lbl">Preparadas</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="font-family:var(--serif);font-size:20px;color:${n>S.maxPrepared?'var(--red)':'var(--green)'}">${n}</span>
+        <span style="color:var(--muted)">/</span>${num("maxPrepared", S.maxPrepared, 52)}</span></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="amt ${filter==='all'?'on':''}" data-act="filter:all" style="${filter==='all'?'background:var(--green);color:#0C1120':''}">Todas</button>
+      <button class="amt ${filter==='prepared'?'on':''}" data-act="filter:prepared" style="${filter==='prepared'?'background:var(--green);color:#0C1120':''}">Só preparadas</button></div>
+    <div class="hint" style="margin-top:12px">Truques: ${CANTRIPS.join(" · ")}</div>
+    <div style="margin-top:6px;font-size:13px;color:var(--moon)">Fey Touched (sempre prontas): ${FEY.join(" · ")}</div>
+  </div>`;
+
+  Object.keys(SPELLS).forEach(k => {
+    const lvl = +k;
+    let list = SPELLS[lvl].map(nm => ({name:nm, custom:false}))
+      .concat(S.customSpells.filter(c => c.lvl === lvl).map(c => ({name:c.name, custom:true, id:c.id})));
+    if (filter === "prepared") list = list.filter(x => S.prepared.includes(x.name));
+    if (filter === "prepared" && !list.length) return;
+    h += `<div class="card" style="padding:14px">
+      <div class="row" style="margin-bottom:10px">
+        <span style="font-family:var(--serif);font-size:18px">${lvl}º nível</span>
+        <button data-act="addspell:${lvl}" style="background:none;border:none;color:var(--muted);font-size:13px">+ magia</button></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${list.map(sp => {
+          const on = S.prepared.includes(sp.name);
+          return `<button class="pill ${on?'on':''} ${sp.custom?'custom':''}"
+            data-act="prep:${encodeURIComponent(sp.name)}"
+            ${sp.custom?`data-del="${sp.id}"`:""}>${esc(sp.name)}</button>`;
+        }).join("")}
+      </div></div>`;
+  });
+  h += `<div class="hint" style="text-align:center">Toque para preparar · segure numa magia sua para apagar</div>`;
+  return h;
+}
+
+function sheetTab() {
+  const wis = mod(S.abilities.SAB);
+  const dc = 8 + S.profBonus + wis, atk = S.profBonus + wis;
+  let h = `<div class="card">
+    <div style="display:flex;justify-content:space-around;text-align:center">
+      <div><div class="lbl">CD</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${dc}</div></div>
+      <div><div class="lbl">Ataque</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${fm(atk)}</div></div>
+      <div><div class="lbl">Prof.</div><div style="margin-top:5px">${num("profBonus", S.profBonus, 54)}</div></div>
+      <div><div class="lbl">CA</div><div style="margin-top:5px">${num("ac", S.ac, 54)}</div></div>
+    </div></div>`;
+
+  h += `<div class="card"><span class="lbl">Atributos</span>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
+    ${ABILS.map(a => `<div class="abil">
+      <div style="font-size:11px;letter-spacing:.1em;color:var(--muted)">${a}</div>
+      <div style="font-family:var(--serif);font-size:24px;margin:2px 0">${fm(mod(S.abilities[a]))}</div>
+      ${num("abil:"+a, S.abilities[a], 54)}</div>`).join("")}
+    </div></div>`;
+
+  h += `<div class="card"><span class="lbl">Salvaguardas</span><div style="margin-top:6px">
+    ${ABILS.map(a => {
+      const p = !!S.saveProfs[a], t = mod(S.abilities[a]) + (p ? S.profBonus : 0);
+      return `<button class="saverow" data-act="save:${a}">
+        <span><span class="check ${p?'on':''}"></span>${ABIL_FULL[a]}</span>
+        <span style="font-family:var(--serif);font-size:18px;color:${p?'var(--moon)':'var(--muted)'}">${fm(t)}</span>
+      </button>`;
+    }).join("")}</div></div>`;
+
+  h += `<div class="card"><span class="lbl">Cópia de segurança</span>
+    <div class="hint" style="margin:8px 0 10px">Tudo é salvo neste aparelho. Copie o texto abaixo para guardar
+      ou levar para outro celular; cole outro no lugar e toque em Restaurar.</div>
+    <textarea id="backup" readonly>${esc(JSON.stringify(S))}</textarea>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="amt" data-act="copy">Copiar</button>
+      <button class="amt" data-act="restore">Restaurar do texto</button></div></div>`;
+
+  h += `<button class="danger" data-act="reset">Restaurar ficha padrão</button>`;
+  if (!storageOK)
+    h += `<div class="hint" style="color:var(--red);text-align:center">Este navegador bloqueou o salvamento.
+          Abra o arquivo no Safari (Arquivos → tocar no arquivo → Compartilhar → Safari).</div>`;
+  return h;
+}
+
+/* ================= RENDER ================= */
+function render() {
+  document.getElementById("app").innerHTML =
+    tab === "combat" ? combatTab() : tab === "spells" ? spellsTab() : sheetTab();
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("on", b.dataset.tab === tab));
+  window.scrollTo(0, scrollMemo[tab] || 0);
+}
+const scrollMemo = {};
+
+/* ================= EVENTOS ================= */
+document.querySelectorAll("nav button").forEach(b =>
+  b.addEventListener("click", () => { scrollMemo[tab] = window.scrollY; tab = b.dataset.tab; render(); }));
+
+let pressTimer = null, longPressed = false;
+document.getElementById("app").addEventListener("touchstart", e => {
+  const btn = e.target.closest("[data-del]");
+  if (!btn) return;
+  longPressed = false;
+  pressTimer = setTimeout(() => {
+    longPressed = true;
+    if (confirm("Apagar esta magia da lista?"))
+      set({customSpells: S.customSpells.filter(c => c.id != btn.dataset.del)});
+  }, 600);
+}, {passive:true});
+["touchend","touchmove","touchcancel"].forEach(ev =>
+  document.getElementById("app").addEventListener(ev, () => clearTimeout(pressTimer), {passive:true}));
+
+document.getElementById("app").addEventListener("click", e => {
+  const el = e.target.closest("[data-act]");
+  if (!el || longPressed) { longPressed = false; return; }
+  const [act, a, b] = el.dataset.act.split(":");
+
+  if (act === "amt") { amt = +a; return render(); }
+  if (act === "dmg") return applyHp(-amt);
+  if (act === "heal") return applyHp(amt);
+  if (act === "addpool") {
+    const nm = prompt("Nome da forma (ex.: Fire Elemental)"); if (!nm) return;
+    const mx = parseInt(prompt("Vida máxima da forma"), 10); if (!mx || mx <= 0) return;
+    return set({pools: S.pools.concat({id: Date.now(), name: nm, current: mx, max: mx})});
+  }
+  if (act === "delpool") return set({pools: S.pools.filter(p => p.id != a)});
+  if (act === "pool-") return poolHp(+a, -amt);
+  if (act === "pool+") return poolHp(+a, amt);
+  if (act === "ws") {
+    const avail = S.wildShape.max - S.wildShape.used;
+    const u = +a < avail ? S.wildShape.used + 1 : S.wildShape.used - 1;
+    return set({wildShape:{...S.wildShape, used: Math.max(0, Math.min(S.wildShape.max, u))}});
+  }
+  if (act === "fey") return set({feyUsed: !S.feyUsed});
+  if (act === "short") return set({wildShape:{...S.wildShape, used:0}});
+  if (act === "long") return set({
+    wildShape:{...S.wildShape, used:0}, feyUsed:false, deathSaves:{s:0,f:0},
+    slots: S.slots.map(s => ({...s, used:0}))});
+  if (act === "ds") {
+    const cur = S.deathSaves[a], v = +b;
+    return set({deathSaves:{...S.deathSaves, [a]: cur === v + 1 ? v : v + 1}});
+  }
+  if (act === "slot") return toggleSlots(null, +a, +b);
+  if (act === "filter") { filter = a; return render(); }
+  if (act === "prep") {
+    const nm = decodeURIComponent(a);
+    return set({prepared: S.prepared.includes(nm)
+      ? S.prepared.filter(x => x !== nm) : S.prepared.concat(nm)});
+  }
+  if (act === "addspell") {
+    const nm = prompt("Nome da magia (nível " + a + ")"); if (!nm) return;
+    return set({customSpells: S.customSpells.concat({id: Date.now(), lvl: +a, name: nm})});
+  }
+  if (act === "save") return set({saveProfs:{...S.saveProfs, [a]: !S.saveProfs[a]}});
+  if (act === "copy") {
+    const t = document.getElementById("backup");
+    t.removeAttribute("readonly"); t.select(); t.setSelectionRange(0, 999999);
+    try { document.execCommand("copy"); alert("Copiado."); } catch (err) { alert("Selecione e copie manualmente."); }
+    t.setAttribute("readonly", "");
+    return;
+  }
+  if (act === "restore") {
+    const t = document.getElementById("backup");
+    try {
+      const parsed = JSON.parse(t.value);
+      if (!confirm("Substituir a ficha atual por este texto?")) return;
+      S = Object.assign(DEFAULTS(), parsed); save(); render();
+    } catch (err) { alert("O texto não é um backup válido."); }
+    return;
+  }
+  if (act === "reset") {
+    if (!confirm("Restaurar tudo para o padrão? Isso apaga o que está salvo.")) return;
+    S = DEFAULTS(); save(); render();
+  }
+});
+
+// campos numéricos: aplicam ao sair do campo
+document.getElementById("app").addEventListener("change", e => {
+  const el = e.target.closest("[data-num]");
+  if (!el) return;
+  const v = parseInt(el.value, 10) || 0;
+  const [k, a] = el.dataset.num.split(":");
+  if (k === "amt") { amt = Math.max(1, v); return render(); }
+  if (k === "hp.temp") return set({hp:{...S.hp, temp: Math.max(0, v)}});
+  if (k === "hp.max") {
+    const mx = Math.max(1, v);
+    return set({hp:{...S.hp, max: mx, current: Math.min(S.hp.current, mx)}});
+  }
+  if (k === "abil") return set({abilities:{...S.abilities, [a]: v}});
+  if (k === "maxPrepared") return set({maxPrepared: Math.max(1, v)});
+  if (k === "profBonus") return set({profBonus: v});
+  if (k === "ac") return set({ac: v});
+});
+document.getElementById("app").addEventListener("focus", e => {
+  if (e.target.matches("input[type=number]")) e.target.select();
+}, true);
+
+render();
+</script>
+</body>
+</html>
