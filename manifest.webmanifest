@@ -1,6 +1,6 @@
 {
-  "name": "Habib — Ficha de Druida",
-  "short_name": "Habib",
+  "name": "Stat Manager D&D 5e",
+  "short_name": "Fichas D&D",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

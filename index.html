@@ -4,92 +4,237 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fichas D&D">
 <meta name="theme-color" content="#0C1120">
-<title>Habib — Ficha</title>
+<title>Stat Manager D&amp;D</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <script>
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
 }
 </script>
 <style>
   :root{
     --bg:#0C1120; --card:#161D33; --soft:#1C2440; --line:rgba(237,241,248,.10);
     --text:#EDF1F8; --muted:#8A93AB; --moon:#E9D8A6; --moondim:#3A4160;
-    --green:#7FB069; --red:#E56B6F;
+    --green:#7FB069; --red:#E56B6F; --blue:#9FC5E8; --ink:#1A1A10;
     --serif:'Iowan Old Style',Palatino,Georgia,serif;
+    --sb:#F6EFDC; --sbtext:#2A1E12; --sbred:#7A200D;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--text);
-    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;
-    -webkit-text-size-adjust:100%}
-  button{font-family:inherit;cursor:pointer;touch-action:manipulation;
-    -webkit-user-select:none;user-select:none}
-  input{font-family:inherit}
-  header{position:sticky;top:0;z-index:10;background:var(--bg);
-    border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top)) 16px 10px;
-    display:flex;justify-content:space-between;align-items:center}
-  .name{font-family:var(--serif);font-size:21px}
-  .sub{font-size:12px;color:var(--muted);margin-top:2px}
-  .dot{width:7px;height:7px;border-radius:4px;background:var(--green);margin-left:6px;transition:background .3s}
+    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+  body.noscroll{overflow:hidden}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;color:inherit}
+  button:disabled{opacity:.4;cursor:default}
+  input,textarea,select{font-family:inherit;color:var(--text);background:var(--soft);border:1px solid var(--line);border-radius:10px}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
+    padding:calc(12px + env(safe-area-inset-top)) 16px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  header>div:first-child{min-width:0}
+  .name{font-family:var(--serif);font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sub-h{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot{width:7px;height:7px;border-radius:4px;background:var(--green);margin-left:6px;transition:background .3s;flex:none}
   .dot.saving{background:var(--moon)}
-  main{padding:14px 14px 100px;max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  main{padding:14px 14px 110px;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .card.tight{padding:12px 14px}
+  .card.sticky{position:sticky;top:calc(58px + env(safe-area-inset-top));z-index:5;box-shadow:0 8px 18px rgba(0,0,0,.25)}
+  .hero{text-align:center}
+  .h1{font-family:var(--serif);font-size:24px;margin-bottom:6px}
+  .h2{font-family:var(--serif);font-size:22px;margin:0 30px 8px 0}
   .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .sub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--moon);opacity:.85;font-weight:600;margin:14px 0 4px}
   .row{display:flex;justify-content:space-between;align-items:center}
-  input[type=number]{width:64px;background:var(--soft);color:var(--text);border:1px solid var(--line);
-    border-radius:10px;padding:8px 6px;font-size:17px;text-align:center;font-variant-numeric:tabular-nums;
-    -moz-appearance:textfield}
+  .row.wrap{flex-wrap:wrap;justify-content:flex-start}
+  .row.around{justify-content:space-around}
+  .gap6{gap:6px}.gap8{gap:8px}.gap10{gap:10px}
+  .mt6{margin-top:6px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt14{margin-top:14px}.mb6{margin-bottom:6px}.mb10{margin-bottom:10px}
+  .grow{flex:1}.center{text-align:center}.pad{padding:24px 0}.wide{width:100%}
+  .muted{color:var(--muted)}.small{font-size:13px}.big18{font-size:18px}
+  .green{color:var(--green)}.red{color:var(--red)}
+  .serif17{font-family:var(--serif);font-size:17px}.serif18{font-family:var(--serif);font-size:18px}.serif20{font-family:var(--serif);font-size:20px}
+  .hint{font-size:12px;color:var(--muted);line-height:1.45}
+  .hint.warn{color:var(--red)}
+  .hint p,p.hint{margin:4px 0}
+  input[type=number]{width:64px;padding:8px 6px;font-size:17px;text-align:center;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
   input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .search{width:100%;padding:10px 12px;font-size:16px}
+  textarea{width:100%;padding:10px;font-size:15px;line-height:1.4;resize:vertical}
+  select{padding:9px 8px;font-size:16px;width:100%}
+  /* números de vida */
+  .hpline{display:flex;align-items:baseline;gap:8px;margin:10px 0 0}
   .hpnum{font-family:var(--serif);font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+  .tempnum{font-size:20px;color:var(--blue)}
   .bar{height:6px;border-radius:3px;background:var(--moondim);overflow:hidden;margin:10px 0 14px}
+  .bar.mt8{margin:8px 0 2px}
   .bar>div{height:100%;transition:width .25s}
-  .amt{flex:1;padding:9px 0;border-radius:10px;font-size:15px;font-weight:600;background:var(--soft);
-    color:var(--text);border:1px solid var(--line)}
-  .amt.on{background:var(--moon);color:#1A1A10}
-  .big{flex:1;padding:15px 0;border-radius:12px;font-size:16px;font-weight:700;border:none}
-  .moon{background:none;border:none;padding:4px;line-height:0}
-  .pill{padding:8px 12px;border-radius:999px;font-size:14px;line-height:1.2;background:var(--soft);
-    color:var(--muted);border:1px solid var(--line)}
-  .pill.on{background:rgba(127,176,105,.20);color:var(--green);border-color:rgba(127,176,105,.6)}
-  .pill.custom{font-style:italic}
-  .ghost{background:var(--soft);color:var(--moon);border:1px solid var(--line);border-radius:10px;
-    padding:6px 12px;font-size:14px}
-  .stepbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--soft);
-    color:var(--moon);font-size:22px;font-weight:600}
+  .amt{flex:1;padding:10px 0;border-radius:10px;font-size:15px;font-weight:600;background:var(--soft);border:1px solid var(--line)}
+  .amt.on{background:var(--moon);color:var(--ink)}
+  .big{flex:1;padding:15px 0;border-radius:12px;font-size:16px;font-weight:700;border:none;display:block}
+  .big.wide{width:100%}
+  .big.dmg{background:var(--red);color:#fff}
+  .big.heal{background:var(--green);color:var(--bg)}
+  .big.primary{background:var(--moon);color:var(--ink)}
+  .big.soft{background:var(--soft);border:1px solid var(--line);font-weight:500}
+  .tfbtns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .moon{background:none;border:none;padding:3px;line-height:0}
+  .pips{display:flex;flex-wrap:wrap;justify-content:flex-end}
+  .ghost{background:var(--soft);color:var(--moon);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font-size:14px}
+  .ghost.wide{width:100%;padding:11px}
+  .stepbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--moon);font-size:22px;font-weight:600}
+  .chip{padding:8px 12px;border-radius:999px;font-size:14px;line-height:1.2;background:var(--soft);border:1px solid var(--line)}
+  .chip.sm{padding:6px 10px;font-size:13px}
+  .chip.on{background:rgba(233,216,166,.16);color:var(--moon);border-color:rgba(233,216,166,.55)}
+  .chip.bad{color:var(--red);border-color:rgba(229,107,111,.4)}
+  .chip small{opacity:.7}
+  .x{background:none;border:1px solid var(--line);color:var(--muted);font-size:13px;padding:5px 10px;border-radius:999px}
+  .pm{width:46px;height:42px;border-radius:10px;border:none;font-size:20px}
+  .pm.sm{width:36px;height:34px;font-size:18px}
+  .pm.minus{background:rgba(229,107,111,.18);color:var(--red)}
+  .pm.plus{background:rgba(127,176,105,.18);color:var(--green)}
+  .cnt{font-family:var(--serif);font-size:19px;min-width:44px;text-align:center}
+  .cnt small{font-size:13px;color:var(--muted)}
+  .moonword{font-family:var(--serif);font-size:18px;color:var(--moon)}
+  .linkish{background:none;border:none;padding:0;text-align:left}
+  /* faixa de números */
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));gap:6px}
+  .strip>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
+  .strip span{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .strip b{font-family:var(--serif);font-size:21px;font-weight:400}
+  .conc{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(159,197,232,.12);
+    border:1px solid rgba(159,197,232,.45);color:var(--blue);border-radius:12px;padding:9px 12px;font-size:14px}
+  .conc button{background:none;border:1px solid rgba(159,197,232,.45);color:var(--blue);border-radius:999px;padding:5px 10px;font-size:13px}
+  .form{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+  .res{padding:5px 0;gap:8px;min-height:38px}
+  .rname{font-size:15px;flex:1;min-width:0}
+  .rname small{display:block;font-size:11px;color:var(--muted)}
+  /* abas segmentadas e listas */
+  .seg{display:flex;background:var(--soft);border-radius:11px;padding:3px;gap:3px}
+  .seg button{flex:1;border:none;background:none;padding:9px 2px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted)}
+  .seg button.on{background:var(--moon);color:var(--ink)}
+  .modes{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -4px;padding:0 4px}
+  .modes::-webkit-scrollbar{display:none}
+  .modes .chip{white-space:nowrap;flex:none}
+  .list{display:flex;flex-direction:column}
+  .li{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;border-bottom:1px solid var(--line);
+    padding:11px 2px;text-align:left;font-size:15px}
+  .li.static{cursor:default}
+  .li.cur .lname{color:var(--moon)}
+  .lname{flex:1;min-width:0}
+  .lname small{color:var(--muted)}
+  .lmeta{font-size:13px;color:var(--muted);text-align:right;max-width:48%}
+  .chev{color:var(--muted);font-size:20px;line-height:1;transition:transform .2s;display:inline-block}
+  .chev.open{transform:rotate(90deg)}
+  .lbody{padding:8px 4px 12px;border-bottom:1px solid var(--line);font-size:14px;line-height:1.5}
+  .lbody p{margin:0 0 8px}
+  .desc p{margin:0 0 8px;font-size:14px;line-height:1.5}
+  .meta{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+  .castrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:6px;
+    background:var(--soft);color:var(--muted);margin-left:4px;vertical-align:2px;border:1px solid var(--line)}
+  .tag.c{color:var(--blue);border-color:rgba(159,197,232,.4)}
+  .tag.r{color:#C8A2E8;border-color:rgba(200,162,232,.4)}
+  .tag.g{color:var(--green);border-color:rgba(127,176,105,.45)}
+  .attn{font-size:13px;color:var(--green)}
+  .attn.bad{color:var(--red)}
+  .coins{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px}
+  .coins label{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted)}
+  .coins input{width:100%}
+  .dsb{background:none;border:none;padding:5px}
+  .ds{width:20px;height:20px;border-radius:10px;border:2px solid;display:block}
+  /* magias */
+  .srow{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:2px 0}
+  .pbox{width:24px;height:24px;flex:none;border-radius:12px;border:2px solid var(--moondim);background:none}
+  .pbox.on{background:var(--green);border-color:var(--green);box-shadow:inset 0 0 0 3px var(--card)}
+  .pbox.fixed{border-style:dotted}
+  .sname{flex:1;background:none;border:none;text-align:left;padding:10px 0;font-size:15px;color:var(--muted)}
+  .srow.on .sname{color:var(--text)}
+  /* bestiário */
+  .crhead{font-family:var(--serif);font-size:17px;color:var(--moon);margin-bottom:2px}
+  .mrow{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);padding:10px 2px}
+  .mrow:last-child{border-bottom:none}
+  .mname{display:block;font-size:15px}
+  .mmeta{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+  .statblock{background:var(--sb);color:var(--sbtext);border-radius:12px;padding:16px;font-size:14px;line-height:1.45;
+    font-family:var(--serif)}
+  .statblock .sbname{font-size:24px;color:var(--sbred);font-variant:small-caps;font-weight:700;line-height:1.1;padding-right:24px}
+  .statblock .sbsub{font-style:italic;font-size:13px;margin-top:2px}
+  .statblock hr{border:none;border-top:2px solid var(--sbred);opacity:.55;margin:8px 0}
+  .statblock b{color:var(--sbred)}
+  .statblock p{margin:6px 0}
+  .statblock p b{color:var(--sbtext)}
+  .statblock .sbh{font-size:18px;color:var(--sbred);font-variant:small-caps;border-bottom:1px solid var(--sbred);margin:12px 0 4px}
+  .statblock .hint{color:#6B5A44}
+  .abgrid{display:grid;grid-template-columns:repeat(6,1fr);text-align:center}
+  .abgrid span{display:block;font-weight:700;color:var(--sbred);font-size:12px}
+  .abgrid b{color:var(--sbtext);font-weight:400}
+  .abgrid small{display:block;font-size:12px}
+  /* ficha */
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+  .fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  .fld input,.fld select{width:100%;padding:9px 10px;font-size:16px;text-align:left}
+  .tlabel{display:block;font-size:12px;color:var(--muted);margin-top:10px}
+  .tlabel textarea{margin-top:4px}
+  .classrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+  .classrow input{padding:9px 10px;font-size:16px;width:100%}
+  .classrow>.row{grid-column:1/-1;justify-content:flex-end}
+  .lvlnum{font-family:var(--serif);font-size:26px;color:var(--moon);min-width:36px;text-align:center}
+  .abgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .abil{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
-  .saverow{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;
-    border:none;border-bottom:1px solid var(--line);padding:11px 2px;color:var(--text);font-size:15px}
-  .check{width:14px;height:14px;border-radius:7px;border:2px solid var(--moon);display:inline-block;
-    vertical-align:-2px;margin-right:10px}
+  .abl{font-size:11px;letter-spacing:.1em;color:var(--muted)}
+  .abm{font-family:var(--serif);font-size:24px;margin:2px 0}
+  .saverow{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;
+    border-bottom:1px solid var(--line);padding:10px 2px;font-size:15px;text-align:left}
+  .check{width:14px;height:14px;border-radius:7px;border:2px solid var(--moon);display:inline-block;vertical-align:-2px;margin-right:10px}
   .check.on{background:var(--moon)}
-  .ds{width:20px;height:20px;border-radius:10px;border:2px solid;background:transparent}
-  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(12,17,32,.96);
-    backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-  nav button{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--muted);font-size:11px;
-    display:flex;flex-direction:column;align-items:center;gap:3px}
+  .check.exp{background:var(--green);border-color:var(--green)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:14px}
+  .warnbox{border-color:rgba(233,216,166,.4)}
+  .danger{padding:13px 0;border-radius:12px;background:rgba(229,107,111,.12);color:var(--red);border:1px solid rgba(229,107,111,.4);font-size:14px;width:100%}
+  .opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+  .opt{display:flex;flex-direction:column;gap:3px;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .opt b{font-size:15px;color:var(--moon);font-weight:600}
+  .opt span{font-size:13px;color:var(--muted);line-height:1.4}
+  /* navegação */
+  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(12,17,32,.96);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:20}
+  nav button{flex:1;padding:11px 0 9px;background:none;border:none;color:var(--muted);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:3px}
   nav button.on{color:var(--moon)}
-  .danger{padding:13px 0;border-radius:12px;background:rgba(229,107,111,.12);color:var(--red);
-    border:1px solid rgba(229,107,111,.4);font-size:14px;width:100%}
-  textarea{width:100%;height:150px;background:var(--soft);color:var(--text);border:1px solid var(--line);
-    border-radius:10px;padding:10px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
-  .hint{font-size:12px;color:var(--muted)}
+  /* painel inferior */
+  #sheet{display:none}
+  #sheet.open{display:block;position:fixed;inset:0;z-index:50}
+  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;max-height:88vh;background:var(--card);border-top-left-radius:20px;border-top-right-radius:20px;
+    border:1px solid var(--line);max-width:600px;margin:0 auto;display:flex;flex-direction:column;animation:up .22s ease-out}
+  @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+  .grab{width:40px;height:5px;border-radius:3px;background:var(--moondim);margin:8px auto 0;flex:none}
+  .sheet-x{position:absolute;top:10px;right:12px;width:34px;height:34px;border-radius:17px;border:1px solid var(--line);background:var(--soft);color:var(--muted);font-size:15px;z-index:2}
+  .sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(24px + env(safe-area-inset-bottom))}
+  .sheet-body .card{padding:0;border:none;background:none}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--moondim);border-top-color:var(--moon);margin:0 auto 12px;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;
+    background:#24304F;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:11px 14px;font-size:14px;line-height:1.45;
+    width:min(92vw,520px);box-shadow:0 10px 30px rgba(0,0,0,.4);transition:all .25s;z-index:60}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+  #toast.bad{border-color:rgba(229,107,111,.6)}
+  input[type=file]{display:none}
 </style>
 </head>
 <body>
 <header>
   <div>
-    <div class="name">Habib Esphyrr Uneno V'Ent</div>
-    <div class="sub" id="subtitle">Druida · Círculo da Lua</div>
+    <div class="name" id="cname">Stat Manager</div>
+    <div class="sub-h" id="subtitle"></div>
   </div>
-  <div style="display:flex;align-items:center;gap:4px">
-    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M15 3a9 9 0 1 0 0 18 7 9 0 0 1 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
-    <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#E9D8A6"/></svg>
-    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 3a9 9 0 1 1 0 18 7 9 0 0 0 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
+  <div style="display:flex;align-items:center;gap:4px;flex:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3a9 9 0 1 0 0 18 7 9 0 0 1 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#E9D8A6"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3a9 9 0 1 1 0 18 7 9 0 0 0 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
     <span class="dot" id="dot"></span>
   </div>
 </header>
@@ -98,12 +243,16 @@ if ("serviceWorker" in navigator) {
 
 <nav>
   <button data-tab="combat" class="on">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M19 14c1.5-1.5 2-3.4 2-5a5 5 0 0 0-9-3 5 5 0 0 0-9 3c0 1.6.5 3.5 2 5l7 7z"/></svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>
     Combate
   </button>
   <button data-tab="spells">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     Magias
+  </button>
+  <button data-tab="forms">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="6" cy="10" r="2"/><circle cx="10" cy="5.5" r="2"/><circle cx="14" cy="5.5" r="2"/><circle cx="18" cy="10" r="2"/><path d="M12 12c-3 0-5.5 3.5-5.5 6 0 1.5 1.2 2.5 2.7 2.2 1.1-.2 1.8-.7 2.8-.7s1.7.5 2.8.7c1.5.3 2.7-.7 2.7-2.2 0-2.5-2.5-6-5.5-6z"/></svg>
+    Formas
   </button>
   <button data-tab="sheet">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -111,470 +260,15 @@ if ("serviceWorker" in navigator) {
   </button>
 </nav>
 
-<script>
-"use strict";
+<div id="sheet"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="file-pdf" data-kind="pdf" accept=".pdf,application/pdf">
+<input type="file" id="file-xml" data-kind="xml">
+<input type="file" id="file-json" data-kind="json" accept=".json,application/json,text/plain">
 
-/* ================= DADOS DA FICHA ================= */
-const SPELLS = {
-1:["Absorb Elements","Animal Friendship","Beast Bond","Charm Person","Create or Destroy Water","Cure Wounds","Detect Magic","Detect Poison and Disease","Earth Tremor","Endurance","Entangle","Faerie Fire","Fog Cloud","Goodberry","Healing Word","Heavy Blow","Ice Knife","Jump","Longstrider","Purify Food and Drink","Snare","Speak with Animals","Starlight Shroud","Thunderwave"],
-2:["Air Bubble","Alter Self","Animal Messenger","Aura of Shade","Barkskin","Beast Sense","Darkvision","Dome of Night","Dust Devil","Earth Ripple","Earthbind","Enhance Ability","Find Traps","Flame Blade","Flaming Sphere","Gust of Wind","Healing Spirit","Heat Metal","Hold Person","Lesser Restoration","Locate Animals or Plants","Locate Object","Mend Wounds","Moonbeam","Pass without Trace","Protection from Poison","Skywrite","Spike Growth","Summon Beast","Ultraviolet Pulse","Warding Wind","Wither and Bloom"],
-3:["Boil","Call Lightning","Circle of Smothering","Conjure Animals","Daylight","Dispel Magic","Erupting Earth","Feign Death","Flame Arrows","Flaming Serpent","Holy Rain","Icy Ring","Meld into Stone","Plant Growth","Protection from Energy","Sleet Storm","Speak with Plants","Summon Fey","Tidal Wave","Wall of Water","Water Breathing","Water Walk","Wind Wall"],
-4:["Blight","Charm Monster","Confusion","Conjure Minor Elementals","Conjure Woodland Beings","Control Water","Dominate Beast","Elemental Bane","Field of Stars","Freedom of Movement","Giant Insect","Grasping Vine","Guardian of Nature","Hallucinatory Terrain","Ice Storm","Ionizing Wind","Locate Creature","Orbital Stones","Polymorph","Rary's Rapid Replication","Seeking Sunfire","Stone Shape","Stoneskin","Summon Elemental","Wall of Fire","Watery Sphere"],
-5:["Antilife Shell","Awaken","Commune with Nature","Conjure Elemental","Contagion","Control Winds","Destructive Impact","Geas","Greater Restoration","Insect Plague","Maelstrom","Mass Cure Wounds","Navigator's Map","Planar Binding","Reincarnate","Scrying","Shadow Stride","Summon Draconic Spirit","Transmute Rock","Tree Stride","Wall of Stone","Wrath of Nature"],
-6:["Bones of the Earth","Conjure Fey","Druid Grove","Find the Path","Heal","Heroes' Feast","Intensify Gravity","Investiture of Flame","Investiture of Ice","Investiture of Stone","Investiture of Wind","Move Earth","Primordial Ward","Sheltering Light","Sunbeam","Transport via Plants","Wall of Thorns","Wind Walk"],
-7:["Draconic Transformation","Encroaching Lava","Fire Storm","Mirage Arcane","Plane Shift","Regenerate","Restoration","Reverse Gravity","Whirlwind"],
-8:["Animal Shapes","Antipathy/Sympathy","Black Hole","Control Weather","Druidic Avatar","Earthquake","Feeblemind","Moonfall","Sunburst","Tsunami"],
-9:["Foresight","Night Sky","Shapechange","Storm of Vengeance","True Resurrection"]};
-const CANTRIPS = ["Guidance","Primal Savagery","Produce Flame","Thorn Whip"];
-const FEY = ["Silvery Barbs (1º)","Misty Step (2º)"];
-const DEFAULT_PREPARED = ["Absorb Elements","Healing Word","Moonbeam","Healing Spirit","Pass without Trace","Hold Person","Wither and Bloom","Conjure Animals","Dispel Magic","Polymorph","Guardian of Nature","Ice Storm","Summon Draconic Spirit","Mass Cure Wounds","Scrying","Heal","Regenerate","Draconic Transformation","Fire Storm","Black Hole","Earthquake","Storm of Vengeance","True Resurrection"];
-const ABILS = ["FOR","DES","CON","INT","SAB","CAR"];
-const ABIL_FULL = {FOR:"Força",DES:"Destreza",CON:"Constituição",INT:"Inteligência",SAB:"Sabedoria",CAR:"Carisma"};
-
-/* Tabela de conjurador completo: slots por nível de personagem (índices 0..8 = níveis de magia 1..9) */
-const SLOT_TABLE = {
-  1:[2,0,0,0,0,0,0,0,0],  2:[3,0,0,0,0,0,0,0,0],  3:[4,2,0,0,0,0,0,0,0],
-  4:[4,3,0,0,0,0,0,0,0],  5:[4,3,2,0,0,0,0,0,0],  6:[4,3,3,0,0,0,0,0,0],
-  7:[4,3,3,1,0,0,0,0,0],  8:[4,3,3,2,0,0,0,0,0],  9:[4,3,3,3,1,0,0,0,0],
- 10:[4,3,3,3,2,0,0,0,0], 11:[4,3,3,3,2,1,0,0,0], 12:[4,3,3,3,2,1,0,0,0],
- 13:[4,3,3,3,2,1,1,0,0], 14:[4,3,3,3,2,1,1,0,0], 15:[4,3,3,3,2,1,1,1,0],
- 16:[4,3,3,3,2,1,1,1,0], 17:[4,3,3,3,2,1,1,1,1], 18:[4,3,3,3,3,1,1,1,1],
- 19:[4,3,3,3,3,2,1,1,1], 20:[4,3,3,3,3,2,2,1,1]
-};
-const PROF = lvl => Math.ceil(lvl / 4) + 1;
-const WS_CR = lvl => lvl < 2 ? 0 : Math.max(1, Math.floor(lvl / 3)); // Círculo da Lua
-const mod = n => Math.floor((n - 10) / 2);
-const PREP_MAX = () => Math.max(1, S.level + mod(S.abilities.SAB)); // druida: nível + mod SAB
-
-const DEFAULTS = () => ({
-  level: 18,
-  hp:{current:100,max:100,temp:0},
-  pools:[],
-  slotsUsed:[0,0,0,0,0,0,0,0,0],
-  wildShape:{used:0},
-  feyUsed:false,
-  deathSaves:{s:0,f:0},
-  abilities:{FOR:10,DES:14,CON:16,INT:12,SAB:20,CAR:10},
-  saveProfs:{INT:true,SAB:true},
-  ac:18,
-  prepared:DEFAULT_PREPARED.slice(),
-  customSpells:[]
-});
-
-/* ================= ESTADO E PERSISTÊNCIA ================= */
-const KEY = "habib-ficha-v1";
-let S = DEFAULTS();
-let tab = "combat";
-let amt = 5;
-let filter = "all";
-let storageOK = true;
-
-function normalize() {
-  S.level = Math.max(1, Math.min(20, S.level || 18));
-  // migração da versão antiga (slots como [{lvl,max,used}])
-  if (Array.isArray(S.slots)) {
-    S.slotsUsed = [0,0,0,0,0,0,0,0,0];
-    S.slots.forEach(s => { if (s.lvl >= 1 && s.lvl <= 9) S.slotsUsed[s.lvl-1] = s.used || 0; });
-    delete S.slots;
-  }
-  if (!Array.isArray(S.slotsUsed)) S.slotsUsed = [0,0,0,0,0,0,0,0,0];
-  const maxes = SLOT_TABLE[S.level];
-  S.slotsUsed = S.slotsUsed.map((u, i) => Math.max(0, Math.min(maxes[i], u || 0)));
-  const wsMax = S.level >= 20 ? Infinity : 2;
-  if (wsMax !== Infinity) S.wildShape.used = Math.max(0, Math.min(2, S.wildShape.used || 0));
-  else S.wildShape.used = 0;
-}
-
-try {
-  const raw = localStorage.getItem(KEY);
-  if (raw) S = Object.assign(DEFAULTS(), JSON.parse(raw));
-} catch (e) { storageOK = false; }
-normalize();
-
-let saveTimer = null;
-function save() {
-  const dot = document.getElementById("dot");
-  dot.classList.add("saving");
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(S));
-      storageOK = true;
-      dot.classList.remove("saving");
-    } catch (e) {
-      storageOK = false;
-      dot.style.background = "var(--red)";
-      dot.classList.remove("saving");
-    }
-  }, 300);
-}
-function set(patch) { Object.assign(S, patch); normalize(); save(); render(); }
-
-/* ================= HELPERS ================= */
-const fm = n => (n >= 0 ? "+" : "") + n;
-const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const moonSVG = (filled, size) =>
-  `<svg width="${size}" height="${size}" viewBox="0 0 24 24">
-     <circle cx="12" cy="12" r="9" fill="${filled?'#E9D8A6':'#3A4160'}"
-       stroke="${filled?'#E9D8A6':'rgba(233,216,166,.35)'}" stroke-width="1.5"/>
-     ${filled?'<circle cx="9.5" cy="9" r="2" fill="rgba(12,17,32,.18)"/>':''}
-   </svg>`;
-const num = (act, val, w) =>
-  `<input type="number" inputmode="numeric" value="${val}" data-num="${act}" style="width:${w||64}px">`;
-
-/* ================= AÇÕES ================= */
-function applyHp(d) {
-  let {current, temp, max} = S.hp;
-  if (d < 0) {
-    let dmg = -d, fromTemp = Math.min(temp, dmg);
-    temp -= fromTemp; dmg -= fromTemp;
-    current = Math.max(0, current - dmg);
-  } else current = Math.min(max, current + d);
-  set({hp:{current, temp, max}});
-}
-function poolHp(id, d) {
-  set({pools: S.pools.map(p => p.id === id
-    ? {...p, current: Math.max(0, Math.min(p.max, p.current + d))} : p)});
-}
-
-/* ================= TELAS ================= */
-function combatTab() {
-  const {hp} = S;
-  const pct = hp.max > 0 ? Math.round(hp.current / hp.max * 100) : 0;
-  const col = pct > 50 ? "var(--green)" : pct > 25 ? "var(--moon)" : "var(--red)";
-  const wsMax = S.level >= 20 ? Infinity : 2;
-  let h = "";
-
-  h += `<div class="card">
-    <div class="row"><span class="lbl">Pontos de vida</span>
-      <span style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px">
-        temp ${num("hp.temp", hp.temp, 52)}</span></div>
-    <div style="display:flex;align-items:baseline;gap:8px;margin:10px 0 0">
-      <span class="hpnum" style="color:${col}">${hp.current}</span>
-      ${hp.temp>0?`<span style="font-size:20px;color:#9FC5E8">+${hp.temp}</span>`:""}
-      <span style="color:var(--muted);font-size:18px">/</span>${num("hp.max", hp.max, 72)}</div>
-    <div class="bar"><div style="width:${pct}%;background:${col}"></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      ${[1,5,10].map(n=>`<button class="amt ${amt===n?'on':''}" data-act="amt:${n}">${n}</button>`).join("")}
-      ${num("amt", amt, 64)}</div>
-    <div style="display:flex;gap:10px">
-      <button class="big" data-act="dmg" style="background:var(--red);color:#fff">− Dano</button>
-      <button class="big" data-act="heal" style="background:var(--green);color:#0C1120">+ Cura</button></div>
-  </div>`;
-
-  h += `<div class="card">
-    <div class="row" style="margin-bottom:${S.pools.length?12:0}px">
-      <span class="lbl">Vidas extras · formas</span>
-      <button class="ghost" data-act="addpool">+ Forma</button></div>`;
-  if (!S.pools.length)
-    h += `<div class="hint" style="margin-top:10px">Adicione uma barra ao virar besta ou elemental.
-          Sua vida principal fica intacta aqui em cima.</div>`;
-  S.pools.forEach(p => {
-    const pp = p.max > 0 ? Math.round(p.current / p.max * 100) : 0;
-    const pc = pp > 25 ? "var(--green)" : "var(--red)";
-    h += `<div style="margin-bottom:16px">
-      <div class="row"><span style="font-family:var(--serif);font-size:17px">${esc(p.name)}</span>
-        <button data-act="delpool:${p.id}" style="background:none;border:none;color:var(--muted);font-size:18px;padding:2px 6px">✕</button></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-        <button data-act="pool-:${p.id}" style="width:46px;height:42px;border-radius:10px;border:none;font-size:20px;background:rgba(229,107,111,.18);color:var(--red)">−</button>
-        ${num("poolcur:"+p.id, p.current, 64)}
-        <span style="color:var(--muted)">/</span>
-        ${num("poolmax:"+p.id, p.max, 64)}
-        <button data-act="pool+:${p.id}" style="width:46px;height:42px;border-radius:10px;border:none;font-size:20px;background:rgba(127,176,105,.18);color:var(--green)">+</button>
-      </div>
-      <div class="bar" style="margin:8px 0 0"><div style="width:${pp}%;background:${pc}"></div></div>
-      <div class="hint" style="margin-top:4px">− e + usam a quantidade selecionada em cima · ou digite direto nos campos</div>
-    </div>`;
-  });
-  h += `</div>`;
-
-  h += `<div class="card">
-    <div class="row"><span class="lbl">Wild Shape</span>
-      ${wsMax === Infinity
-        ? `<span style="font-family:var(--serif);font-size:18px;color:var(--moon)">∞ Arquidruida</span>`
-        : `<div style="display:flex">${Array.from({length:2},(_,i)=>
-            `<button class="moon" data-act="ws:${i}">${moonSVG(i < 2 - S.wildShape.used, 30)}</button>`).join("")}</div>`}
-    </div>
-    <div class="hint" style="margin-top:6px">CR máximo da forma: ${WS_CR(S.level)}${S.level>=10?" · elementais liberados":""}</div>
-    <div class="row" style="margin-top:12px">
-      <span style="font-size:14px;color:var(--muted)">Fey Touched (1/dia)</span>
-      <button data-act="fey" style="padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;
-        border:1px solid var(--line);background:${S.feyUsed?'var(--moondim)':'rgba(233,216,166,.15)'};
-        color:${S.feyUsed?'var(--muted)':'var(--moon)'}">${S.feyUsed?"Usado":"Disponível"}</button></div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="big" data-act="short" style="background:var(--soft);color:var(--text);border:1px solid var(--line);font-weight:400;font-size:15px">Descanso curto</button>
-      <button class="big" data-act="long" style="background:var(--moon);color:#1A1A10;font-size:15px">Descanso longo</button></div>
-    <div class="hint" id="restmsg" style="margin-top:8px;text-align:center;color:var(--green);visibility:hidden">✓</div>
-  </div>`;
-
-  h += `<div class="card"><span class="lbl">Testes contra a morte</span>
-    <div style="display:flex;justify-content:space-around;margin-top:10px">
-    ${[["s","Sucessos","var(--green)"],["f","Falhas","var(--red)"]].map(([k,lbl,c])=>`
-      <div style="text-align:center"><div style="font-size:13px;color:${c};margin-bottom:4px">${lbl}</div>
-      <div style="display:flex">${[0,1,2].map(i=>
-        `<button data-act="ds:${k}:${i}" style="background:none;border:none;padding:5px">
-          <span class="ds" style="border-color:${c};background:${i<S.deathSaves[k]?c:'transparent'};display:block"></span>
-        </button>`).join("")}</div></div>`).join("")}
-    </div></div>`;
-  return h;
-}
-
-function spellsTab() {
-  const maxes = SLOT_TABLE[S.level];
-  let h = "";
-  h += `<div class="card">
-    <div class="row" style="margin-bottom:8px"><span class="lbl">Espaços de magia · nível ${S.level}</span>
-      <span class="hint">toque na lua p/ gastar</span></div>`;
-  maxes.forEach((mx, idx) => {
-    if (mx === 0) return;
-    const used = S.slotsUsed[idx];
-    h += `<div class="row" style="padding:3px 0">
-      <span style="font-family:var(--serif);font-size:16px;width:34px;color:${used>=mx?'var(--muted)':'var(--text)'}">${idx+1}º</span>
-      <div style="display:flex;flex-wrap:wrap;justify-content:flex-end">
-        ${Array.from({length:mx},(_,i)=>
-          `<button class="moon" data-act="slot:${idx}:${i}">${moonSVG(i < mx - used, 26)}</button>`).join("")}
-      </div></div>`;
-  });
-  h += `</div>`;
-
-  const n = S.prepared.length, pm = PREP_MAX();
-  h += `<div class="card">
-    <div class="row"><span class="lbl">Preparadas</span>
-      <span style="display:flex;align-items:baseline;gap:6px">
-        <span style="font-family:var(--serif);font-size:20px;color:${n>pm?'var(--red)':'var(--green)'}">${n}</span>
-        <span style="color:var(--muted)">/ ${pm}</span></span></div>
-    <div class="hint" style="margin-top:4px">limite = nível ${S.level} + mod. SAB ${fm(mod(S.abilities.SAB))} (automático)</div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="amt" data-act="filter:all" style="${filter==='all'?'background:var(--green);color:#0C1120':''}">Todas</button>
-      <button class="amt" data-act="filter:prepared" style="${filter==='prepared'?'background:var(--green);color:#0C1120':''}">Só preparadas</button></div>
-    <div class="hint" style="margin-top:12px">Truques: ${CANTRIPS.join(" · ")}</div>
-    <div style="margin-top:6px;font-size:13px;color:var(--moon)">Fey Touched (sempre prontas): ${FEY.join(" · ")}</div>
-  </div>`;
-
-  const maxSpellLvl = maxes.reduce((acc, m, i) => m > 0 ? i + 1 : acc, 0);
-  Object.keys(SPELLS).forEach(k => {
-    const lvl = +k;
-    if (lvl > maxSpellLvl && filter !== "prepared") {
-      // nível ainda sem slot: esconde para não poluir
-      return;
-    }
-    let list = SPELLS[lvl].map(nm => ({name:nm, custom:false}))
-      .concat(S.customSpells.filter(c => c.lvl === lvl).map(c => ({name:c.name, custom:true, id:c.id})));
-    if (filter === "prepared") list = list.filter(x => S.prepared.includes(x.name));
-    if (filter === "prepared" && !list.length) return;
-    h += `<div class="card" style="padding:14px">
-      <div class="row" style="margin-bottom:10px">
-        <span style="font-family:var(--serif);font-size:18px">${lvl}º nível</span>
-        <button data-act="addspell:${lvl}" style="background:none;border:none;color:var(--muted);font-size:13px">+ magia</button></div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${list.map(sp => {
-          const on = S.prepared.includes(sp.name);
-          return `<button class="pill ${on?'on':''} ${sp.custom?'custom':''}"
-            data-act="prep:${encodeURIComponent(sp.name)}"
-            ${sp.custom?`data-del="${sp.id}"`:""}>${esc(sp.name)}</button>`;
-        }).join("")}
-      </div></div>`;
-  });
-  h += `<div class="hint" style="text-align:center">Toque para preparar · segure numa magia sua para apagar</div>`;
-  return h;
-}
-
-function sheetTab() {
-  const wis = mod(S.abilities.SAB);
-  const prof = PROF(S.level);
-  const dc = 8 + prof + wis, atk = prof + wis;
-  let h = `<div class="card">
-    <div class="row"><span class="lbl">Nível do personagem</span>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="stepbtn" data-act="lvl:-1">−</button>
-        <span style="font-family:var(--serif);font-size:34px;color:var(--moon);min-width:44px;text-align:center">${S.level}</span>
-        <button class="stepbtn" data-act="lvl:1">+</button>
-      </div></div>
-    <div class="hint" style="margin-top:8px">Ao subir de nível, slots, proficiência, limite de preparadas e Wild Shape acompanham sozinhos. Só a vida máxima você ajusta na mão (depende dos dados rolados).</div>
-  </div>`;
-
-  h += `<div class="card">
-    <div style="display:flex;justify-content:space-around;text-align:center">
-      <div><div class="lbl">CD</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${dc}</div></div>
-      <div><div class="lbl">Ataque</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${fm(atk)}</div></div>
-      <div><div class="lbl">Prof.</div><div style="font-family:var(--serif);font-size:30px;color:var(--moon)">${fm(prof)}</div></div>
-      <div><div class="lbl">CA</div><div style="margin-top:5px">${num("ac", S.ac, 54)}</div></div>
-    </div></div>`;
-
-  h += `<div class="card"><span class="lbl">Atributos</span>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
-    ${ABILS.map(a => `<div class="abil">
-      <div style="font-size:11px;letter-spacing:.1em;color:var(--muted)">${a}</div>
-      <div style="font-family:var(--serif);font-size:24px;margin:2px 0">${fm(mod(S.abilities[a]))}</div>
-      ${num("abil:"+a, S.abilities[a], 54)}</div>`).join("")}
-    </div></div>`;
-
-  h += `<div class="card"><span class="lbl">Salvaguardas</span><div style="margin-top:6px">
-    ${ABILS.map(a => {
-      const p = !!S.saveProfs[a], t = mod(S.abilities[a]) + (p ? prof : 0);
-      return `<button class="saverow" data-act="save:${a}">
-        <span><span class="check ${p?'on':''}"></span>${ABIL_FULL[a]}</span>
-        <span style="font-family:var(--serif);font-size:18px;color:${p?'var(--moon)':'var(--muted)'}">${fm(t)}</span>
-      </button>`;
-    }).join("")}</div></div>`;
-
-  h += `<div class="card"><span class="lbl">Cópia de segurança</span>
-    <div class="hint" style="margin:8px 0 10px">Tudo é salvo neste aparelho. Copie o texto abaixo para guardar
-      ou levar para outro celular; cole outro no lugar e toque em Restaurar.</div>
-    <textarea id="backup" readonly>${esc(JSON.stringify(S))}</textarea>
-    <div style="display:flex;gap:10px;margin-top:10px">
-      <button class="amt" data-act="copy">Copiar</button>
-      <button class="amt" data-act="restore">Restaurar do texto</button></div></div>`;
-
-  h += `<button class="danger" data-act="reset">Restaurar ficha padrão</button>`;
-  if (!storageOK)
-    h += `<div class="hint" style="color:var(--red);text-align:center">Este navegador bloqueou o salvamento.
-          Abra pelo Safari / tela de início.</div>`;
-  return h;
-}
-
-/* ================= RENDER ================= */
-function render() {
-  const y = window.scrollY; // preserva a posição — corrige o "pulo" da página
-  document.getElementById("app").innerHTML =
-    tab === "combat" ? combatTab() : tab === "spells" ? spellsTab() : sheetTab();
-  document.querySelectorAll("nav button").forEach(b =>
-    b.classList.toggle("on", b.dataset.tab === tab));
-  document.getElementById("subtitle").textContent =
-    `Druida · Círculo da Lua · nível ${S.level}`;
-  window.scrollTo(0, y);
-}
-const scrollMemo = {};
-
-/* ================= EVENTOS ================= */
-document.querySelectorAll("nav button").forEach(b =>
-  b.addEventListener("click", () => {
-    scrollMemo[tab] = window.scrollY;
-    tab = b.dataset.tab;
-    render();
-    window.scrollTo(0, scrollMemo[tab] || 0);
-  }));
-
-let pressTimer = null, longPressed = false;
-document.getElementById("app").addEventListener("touchstart", e => {
-  const btn = e.target.closest("[data-del]");
-  if (!btn) return;
-  longPressed = false;
-  pressTimer = setTimeout(() => {
-    longPressed = true;
-    if (confirm("Apagar esta magia da lista?"))
-      set({customSpells: S.customSpells.filter(c => c.id != btn.dataset.del)});
-  }, 600);
-}, {passive:true});
-["touchend","touchmove","touchcancel"].forEach(ev =>
-  document.getElementById("app").addEventListener(ev, () => clearTimeout(pressTimer), {passive:true}));
-
-function flashRest(msg) {
-  const el = document.getElementById("restmsg");
-  if (!el) return;
-  el.textContent = msg;
-  el.style.visibility = "visible";
-  setTimeout(() => { const e2 = document.getElementById("restmsg"); if (e2) e2.style.visibility = "hidden"; }, 1800);
-}
-
-document.getElementById("app").addEventListener("click", e => {
-  const el = e.target.closest("[data-act]");
-  if (!el || longPressed) { longPressed = false; return; }
-  const [act, a, b] = el.dataset.act.split(":");
-
-  if (act === "amt") { amt = +a; return render(); }
-  if (act === "dmg") return applyHp(-amt);
-  if (act === "heal") return applyHp(amt);
-  if (act === "addpool") {
-    const nm = prompt("Nome da forma (ex.: Fire Elemental)"); if (!nm) return;
-    const mx = parseInt(prompt("Vida máxima da forma"), 10); if (!mx || mx <= 0) return;
-    return set({pools: S.pools.concat({id: Date.now(), name: nm, current: mx, max: mx})});
-  }
-  if (act === "delpool") return set({pools: S.pools.filter(p => p.id != a)});
-  if (act === "pool-") return poolHp(+a, -amt);
-  if (act === "pool+") return poolHp(+a, amt);
-  if (act === "ws") {
-    const avail = 2 - S.wildShape.used;
-    const u = +a < avail ? S.wildShape.used + 1 : S.wildShape.used - 1;
-    return set({wildShape:{used: Math.max(0, Math.min(2, u))}});
-  }
-  if (act === "fey") return set({feyUsed: !S.feyUsed});
-  if (act === "short") { set({wildShape:{used:0}}); return flashRest("Descanso curto: Wild Shape recuperado"); }
-  if (act === "long") {
-    set({wildShape:{used:0}, feyUsed:false, deathSaves:{s:0,f:0},
-         slotsUsed:[0,0,0,0,0,0,0,0,0]});
-    return flashRest("Descanso longo: slots, Wild Shape e Fey Touched recuperados");
-  }
-  if (act === "ds") {
-    const cur = S.deathSaves[a], v = +b;
-    return set({deathSaves:{...S.deathSaves, [a]: cur === v + 1 ? v : v + 1}});
-  }
-  if (act === "slot") {
-    const idx = +a, mx = SLOT_TABLE[S.level][idx];
-    const used = S.slotsUsed[idx], avail = mx - used;
-    const nu = +b < avail ? used + 1 : used - 1;
-    const arr = S.slotsUsed.slice();
-    arr[idx] = Math.max(0, Math.min(mx, nu));
-    return set({slotsUsed: arr});
-  }
-  if (act === "filter") { filter = a; return render(); }
-  if (act === "prep") {
-    const nm = decodeURIComponent(a);
-    return set({prepared: S.prepared.includes(nm)
-      ? S.prepared.filter(x => x !== nm) : S.prepared.concat(nm)});
-  }
-  if (act === "addspell") {
-    const nm = prompt("Nome da magia (nível " + a + ")"); if (!nm) return;
-    return set({customSpells: S.customSpells.concat({id: Date.now(), lvl: +a, name: nm})});
-  }
-  if (act === "lvl") return set({level: S.level + (+a)});
-  if (act === "save") return set({saveProfs:{...S.saveProfs, [a]: !S.saveProfs[a]}});
-  if (act === "copy") {
-    const t = document.getElementById("backup");
-    t.removeAttribute("readonly"); t.select(); t.setSelectionRange(0, 999999);
-    try { document.execCommand("copy"); alert("Copiado."); } catch (err) { alert("Selecione e copie manualmente."); }
-    t.setAttribute("readonly", "");
-    return;
-  }
-  if (act === "restore") {
-    const t = document.getElementById("backup");
-    try {
-      const parsed = JSON.parse(t.value);
-      if (!confirm("Substituir a ficha atual por este texto?")) return;
-      S = Object.assign(DEFAULTS(), parsed); normalize(); save(); render();
-    } catch (err) { alert("O texto não é um backup válido."); }
-    return;
-  }
-  if (act === "reset") {
-    if (!confirm("Restaurar tudo para o padrão? Isso apaga o que está salvo.")) return;
-    S = DEFAULTS(); normalize(); save(); render();
-  }
-});
-
-// campos numéricos: aplicam ao confirmar/sair do campo
-document.getElementById("app").addEventListener("change", e => {
-  const el = e.target.closest("[data-num]");
-  if (!el) return;
-  const v = parseInt(el.value, 10) || 0;
-  const [k, a] = el.dataset.num.split(":");
-  if (k === "amt") { amt = Math.max(1, v); return render(); }
-  if (k === "hp.temp") return set({hp:{...S.hp, temp: Math.max(0, v)}});
-  if (k === "hp.max") {
-    const mx = Math.max(1, v);
-    return set({hp:{...S.hp, max: mx, current: Math.min(S.hp.current, mx)}});
-  }
-  if (k === "poolcur") return set({pools: S.pools.map(p => p.id == a
-    ? {...p, current: Math.max(0, Math.min(p.max, v))} : p)});
-  if (k === "poolmax") return set({pools: S.pools.map(p => p.id == a
-    ? {...p, max: Math.max(1, v), current: Math.min(p.current, Math.max(1, v))} : p)});
-  if (k === "abil") return set({abilities:{...S.abilities, [a]: v}});
-  if (k === "ac") return set({ac: v});
-});
-document.getElementById("app").addEventListener("focus", e => {
-  if (e.target.matches("input[type=number]")) e.target.select();
-}, true);
-
-render();
-</script>
+<script src="js/importers.js"></script>
+<script src="js/core.js"></script>
+<script src="js/views.js"></script>
+<script src="js/actions.js"></script>
 </body>
 </html>
