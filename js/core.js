@@ -38,8 +38,8 @@ const BASIC = {
 /* ================= ESTADO ================= */
 let DB = {v: 2, active: null, chars: {}, custom: []};
 let C = null;
-const UI = {tab: "combat", amt: 5, actTab: "action", spellFilter: "all", spellQ: "", open: {}, formMode: "",
-  formQ: "", formMove: "", formSort: "cr", sheet: null, sheetStack: [], storageOK: true};
+const UI = {tab: "combat", amt: 5, actTab: "action", spellFilter: null, spellQ: "", open: {}, formMode: "",
+  formQ: "", formMove: "", formSort: "cr", sheet: null, sheetStack: [], storageOK: true, rollMode: "normal", ext: {}, arc: []};
 
 function loadDB() {
   try {
@@ -69,13 +69,19 @@ function save() {
   }, 250);
 }
 function commit() { if (C) normalize(C); save(); render(); }
-function setActive(id) { C = DB.chars[id] || null; DB.active = C ? C.id : null; UI.open = {}; UI.formMode = ""; commit(); }
+function setActive(id) {
+  C = DB.chars[id] || null; DB.active = C ? C.id : null;
+  Object.assign(UI, {open: {}, formMode: "", spellFilter: null, spellQ: "", ext: {}, rollMode: "normal", sheet: null});
+  commit();
+}
 
 /* Garante que todos os campos existam e estejam dentro dos limites. */
 function normalize(ch) {
   const base = I.blankCharacter();
   Object.keys(base).forEach(k => { if (ch[k] == null) ch[k] = base[k]; });
-  ["bio", "abilities", "speed", "coins", "hp", "deathSaves", "meta"].forEach(k => { ch[k] = Object.assign({}, base[k], ch[k]); });
+  ["bio", "abilities", "speed", "coins", "hp", "deathSaves", "meta", "turn"].forEach(k => { ch[k] = Object.assign({}, base[k], ch[k]); });
+  ch.exhaustion = Math.max(0, Math.min(6, +ch.exhaustion || 0));
+  ch.states = ch.states.filter(k => stateDef(k));
   ch.hp.max = Math.max(1, +ch.hp.max || 1);
   ch.hp.current = Math.max(0, Math.min(ch.hp.max, +ch.hp.current || 0));
   ch.hp.temp = Math.max(0, +ch.hp.temp || 0);
@@ -97,6 +103,7 @@ function normalize(ch) {
   }
   const ws = wsFeature(ch);
   if (ws && druidLevel(ch) >= 20) ws.uses = null;
+  if (ch.meta.rulesV !== RULES_V) applyClassRules(ch);
   return ch;
 }
 
@@ -287,5 +294,5 @@ function toast(msg, kind) {
   t.innerHTML = msg;
   t.className = "show " + (kind || "");
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { t.className = ""; }, kind === "long" ? 5200 : 2600);
+  toast.timer = setTimeout(() => { t.className = ""; }, /act/.test(kind) ? 9000 : /long/.test(kind || "") ? 5200 : 2600);
 }

@@ -39,6 +39,9 @@ function blankCharacter() {
     spells: [],
     items: [], attuneMax: 3, coins: {cp: 0, sp: 0, ep: 0, gp: 0, pp: 0},
     forms: [],
+    /* estado de sessão: condições, estados ativos (Fúria, Canção da Lâmina...), turno e rolagens */
+    conditions: [], exhaustion: 0, states: [], turn: {round: 0, action: false, bonus: false, reaction: false, move: false, attacks: 0},
+    log: [], theme: "",
     bio: {gender: "", age: "", height: "", weight: "", eyes: "", skin: "", hair: "",
       traits: "", ideals: "", bonds: "", flaws: "", trinket: "", backgroundFeature: "", backgroundFeatureText: "",
       backstory: "", allies: "", additional: ""},
@@ -454,13 +457,16 @@ function parseAurora(doc) {
   const enc = g("details_encounter_box").match(/(\d+)\s*Attack/i);
   if (enc) C.attacksPerAction = +enc[1];
 
-  /* ataques da página 1 */
+  /* ataques da página 1 (sem dado de dano nem CD é lixo: foco arcano, linha "spellcasting ... depends") */
   for (let i = 1; i <= 12; i++) {
     const nm = g("details_attack" + i + "_weapon");
     if (!nm) continue;
-    C.attacks.push({id: uid(), name: nm, range: g("details_attack" + i + "_range"),
+    const a = {id: uid(), name: nm, range: g("details_attack" + i + "_range"),
       attack: g("details_attack" + i + "_attack").replace(/\s*vs AC/i, ""), damage: g("details_attack" + i + "_damage"),
-      notes: g("details_attack" + i + "_description")});
+      notes: g("details_attack" + i + "_description")};
+    if (!/\d*d\d+/.test(a.damage) && !/saving throw|\bDC\b/i.test(a.attack)) continue;
+    if (C.attacks.some(o => o.name === a.name && o.attack === a.attack && o.damage === a.damage)) continue;
+    C.attacks.push(a);
   }
 
   /* features (página 1 + "Additional Features" da página 2) e proficiências */
@@ -671,7 +677,8 @@ function parseSpellPages(C, pages, F, cards) {
   const slots = [0, 0, 0, 0, 0, 0, 0, 0, 0];
   Object.keys(blocks).forEach(cls => {
     const bl = blocks[cls];
-    const isOther = /other/i.test(cls);
+    /* bloco sem atributo nem CD (ex.: "Fighter" com magias raciais) = magias de outra fonte */
+    const isOther = /other/i.test(cls) || (!bl.ability && !toInt(bl.dc, 0) && !bl.attack);
     const prepares = !isOther && !!bl.prepMax && !/n\/a/i.test(bl.prepMax);
     if (!isOther) C.casting.push({cls, label: bl.label, ability: bl.ability, attack: bl.attack, dc: toInt(bl.dc, 0),
       prepMax: prepares ? toInt(bl.prepMax, 0) : 0, prepares});

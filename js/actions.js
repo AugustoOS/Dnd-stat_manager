@@ -16,7 +16,11 @@ function applyDamage(n) {
     }
   }
   if (dmg > 0) C.hp.current = Math.max(0, C.hp.current - dmg);
-  if (C.concentration) msgs.push(`Concentração em ${esc(C.concentration)}: salvaguarda de CON, CD <b>${Math.max(10, Math.floor(n / 2))}</b>${hasWarCaster() ? " com vantagem (War Caster)" : ""}.`);
+  if (C.concentration) {
+    const extra = [hasWarCaster() && "vantagem (War Caster)", isOn(C, "bladesong") && "+" + atLeast1(abilMod(C, "int")) + " (Canção da Lâmina)"].filter(Boolean);
+    msgs.push(`Concentração em ${esc(C.concentration)}: salvaguarda de CON ${fm(saveTotal(C, "con"))}, CD <b>${Math.max(10, Math.floor(n / 2))}</b>${extra.length ? " · " + extra.join(" · ") : ""}.`);
+  }
+  if (isOn(C, "rage")) msgs.push("Em Fúria: se o dano foi contundente, cortante ou perfurante, só conta a metade (use Cura para devolver).");
   if (C.hp.current === 0 && !activeForm()) msgs.push("0 PV: role testes contra a morte.");
   commit();
   if (msgs.length) toast(msgs.join("<br>"), "long");
@@ -52,12 +56,22 @@ function castSpell(id, mode) {
     if (C.slots[l - 1] - C.slotsUsed[l - 1] <= 0) return toast("Sem espaços de " + ORD(l) + " nível.");
     how = "espaço de " + ORD(l);
   }
+  if (isOn(C, "rage") && !confirm("Em Fúria você não pode conjurar magias. Conjurar mesmo assim?")) return;
   if (info.conc && !setConc(s.name)) return;
+  let slot = s.level;
   if (mode === "f") s.free.used++;
-  else if (mode === "p") C.pact.used++;
-  else if (mode[0] === "s") C.slotsUsed[+mode.slice(1) - 1]++;
+  else if (mode === "p") { C.pact.used++; slot = C.pact.level; }
+  else if (mode[0] === "s") { slot = +mode.slice(1); C.slotsUsed[slot - 1]++; }
+  if (s.level) s.lastSlot = slot;
+  /* turno: tipo de ação e a regra da magia de ação bônus */
+  const kind = actionKind(info.castingTime);
+  markUse(kind);
+  if (C.turn.round && kind === "bonus") C.turn.bonusSpell = true;
+  if (C.turn.round && kind === "action" && s.level > 0) C.turn.slotSpell = true;
+  const st = STATES.find(x => x.spell && x.spell.test(s.name));
+  if (st && !isOn(C, st.key)) C.states.push(st.key);
   commit();
-  toast(`<b>${esc(s.name)}</b> conjurada — ${how}${info.conc ? " · concentração" : ""}`);
+  if (!rollSpell(s, slot)) toast(`<b>${esc(s.name)}</b> conjurada — ${how}${info.conc ? " · concentração" : ""}${st ? " · " + st.eff(C)[0] : ""}`);
 }
 
 /* ================= FORMAS ================= */
@@ -88,6 +102,7 @@ function transform(via, name) {
     C.forms = C.forms.filter(x => x.via !== "polymorph");
   }
   C.forms.unshift({id: I.uid(), name: m.n, mon: m.n, cur: m.hp, max: m.hp, via});
+  if (via !== "manual") markUse((via === "ws" || via === "elemental") && wsInfo(C).combat ? "bonus" : "action");
   closeSheet();
   UI.tab = "combat";
   commit();
@@ -116,6 +131,8 @@ function longRest() {
   C.hitDice.slice().sort((a, b) => b.die - a.die).forEach(h => { const r = Math.min(h.used, regain); h.used -= r; regain -= r; });
   C.deathSaves = {s: 0, f: 0};
   C.items.forEach(i => { const m = regainCharges(i); if (m) msgs.push(m); });
+  if (C.exhaustion) { C.exhaustion--; msgs.push("Exaustão −1 (agora " + C.exhaustion + ")."); }
+  endCombat();
   commit();
   toast("Descanso longo: PV, espaços, características e dados de vida recuperados." + (msgs.length ? "<br>" + msgs.join("<br>") : ""), "long");
 }
@@ -326,15 +343,94 @@ const ACTS = {
   long: () => { if (confirm("Fazer descanso longo? Recupera PV, espaços de magia e características.")) longRest(); },
   acttab: k => { UI.actTab = k; render(); },
   open: key => { key = decodeURIComponent(key); UI.open[key] = !UI.open[key]; if (key.startsWith("b:")) Object.keys(UI.open).forEach(k => { if (k !== key && k.startsWith("b:")) UI.open[k] = false; }); render(); },
-  rollatk(id) {
-    const a = C.attacks.find(x => x.id === id);
-    const bonus = parseInt((a.attack || "").replace(/[^\d+-]/g, ""), 10) || 0;
-    const d20 = rollDice("1d20").total;
-    const dm = (a.damage || "").match(/\d+d\d+(?:\s*[+-]\s*\d+)?/);
-    const dmg = dm ? rollDice(dm[0]) : null;
-    const crit = d20 === 20 ? " · <b>CRÍTICO</b> (dobre os dados)" : d20 === 1 ? " · falha crítica" : "";
-    toast(`${esc(a.name)}: ataque <b>${d20 + bonus}</b> (${d20}${fm(bonus)})${dmg ? ` · dano <b>${dmg.total}</b> ${esc((a.damage || "").replace(dm[0], "").trim())}` : ""}${crit}`, "long");
+  rollatk: id => { const a = C.attacks.find(x => x.id === id); if (a) rollAttack(a); },
+  rmode: k => { UI.rollMode = k; render(); },
+  ext: k => { const x = damageExtras(C).find(e => e.key === k); if (x) { UI.ext[k] = !extraOn(x); render(); } },
+  smite() {
+    const avail = C.slots.map((m, i) => m - C.slotsUsed[i] > 0 ? i + 1 : 0).filter(Boolean);
+    const cur = UI.ext.smite || 0;
+    UI.ext.smite = avail.find(l => l > cur) || 0;
+    render();
   },
+  rollspell: id => { const s = C.spells.find(x => x.id === id); if (s && !rollSpell(s, s.lastSlot || s.level)) toast("Nada para rolar nesta magia."); },
+  healme: n => { document.getElementById("toast").className = ""; applyHeal(+n); toast(`+${n} PV`); },
+  test: (kind, key) => rollTest(kind, key && decodeURIComponent(key)),
+  dice: () => openSheet("dice"),
+  rolld(n) { const r = rollDice("1d" + n); showRoll("d" + n, [{total: r.total, detail: r.detail, crit: +n === 20 && r.total === 20, fail: +n === 20 && r.total === 1}]); },
+  rollexpr() {
+    const v = document.getElementById("dexpr").value.trim();
+    UI.dexpr = v;
+    if (!/\d/.test(v)) return toast("Escreva algo como 2d6+3.");
+    const r = rollDice(v);
+    showRoll(v, [{total: r.total, detail: r.detail}]);
+  },
+  clearlog: () => { C.log = []; commit(); },
+  deathroll() {
+    const d = rollD20(C, "save").nat, ds = C.deathSaves;
+    let msg;
+    if (d === 20) { C.deathSaves = {s: 0, f: 0}; C.hp.current = Math.max(1, C.hp.current); msg = "20 natural: você volta com 1 PV!"; }
+    else if (d === 1) { ds.f = Math.min(3, ds.f + 2); msg = "1 natural: duas falhas."; }
+    else if (d >= 10) { ds.s = Math.min(3, ds.s + 1); msg = ds.s >= 3 ? "Três sucessos: estável." : "Sucesso."; }
+    else { ds.f = Math.min(3, ds.f + 1); msg = "Falha."; }
+    if (C.deathSaves.f >= 3) msg += " Três falhas…";
+    commit();
+    showRoll("Teste contra a morte", [{total: d, detail: msg, crit: d === 20, fail: d === 1}]);
+  },
+  conditions: () => openSheet("conditions"),
+  cond(k) {
+    const on = C.conditions.includes(k);
+    C.conditions = on ? C.conditions.filter(x => x !== k) : C.conditions.concat(k);
+    if (!on && /incapacitated|paralyzed|petrified|stunned|unconscious/.test(k) && C.concentration) toast(`${condName(k)}: a concentração em ${esc(C.concentration)} termina.`, "long");
+    commit();
+  },
+  exh: d => { C.exhaustion = Math.max(0, Math.min(6, C.exhaustion + +d)); commit(); },
+  stateon(k) {
+    const s = stateDef(k), f = s.rx && featNamed(C, s.rx);
+    if (f && f.uses) { if (!usesLeft(f.uses)) return toast("Sem usos de " + esc(f.name) + "."); f.uses.used++; }
+    if (k === "rage" && C.concentration) { toast(`Fúria encerra a concentração em ${esc(C.concentration)}.`); C.concentration = ""; }
+    if (!isOn(C, k)) C.states.push(k);
+    markUse(s.act);
+    commit();
+  },
+  stateoff: k => { C.states = C.states.filter(x => x !== k); commit(); },
+  startcombat: () => { startCombat(); commit(); },
+  endcombat: () => { endCombat(); commit(); toast("Combate encerrado. Estados de combate desligados."); },
+  nextturn: () => { nextTurn(); commit(); window.scrollTo(0, 0); },
+  tuse: k => { C.turn[k] = !C.turn[k]; if (k === "action" && !C.turn.action) C.turn.attacks = 0; commit(); },
+  basic(kind, name) {
+    name = decodeURIComponent(name);
+    markUse(kind === "reaction" ? "reaction" : "action");
+    if (name === "Esquivar" && !isOn(C, "dodge")) C.states.push("dodge");
+    if (name === "Disparada") toast(`Disparada: +${curSpeed(C)} de deslocamento neste turno.`);
+    commit();
+  },
+  arcrec: () => { UI.arc = []; openSheet("arcrec"); },
+  arc: (i, d) => { UI.arc[+i] = Math.max(0, (UI.arc[+i] || 0) + +d); renderSheet(); },
+  doarc() {
+    const f = arcaneRecovery(C);
+    UI.arc.forEach((n, i) => { if (n) C.slotsUsed[i] = Math.max(0, C.slotsUsed[i] - n); });
+    if (f && f.uses) f.uses.used = Math.min(f.uses.max, f.uses.used + 1);
+    UI.arc = [];
+    closeSheet(); commit();
+    toast("Recuperação Arcana: espaços recuperados.");
+  },
+  fom: () => openSheet("fom"),
+  fom2pts(i) {
+    i = +i;
+    const f = sorceryFeature(C);
+    if (C.slots[i] - C.slotsUsed[i] <= 0 || f.uses.used < i + 1) return;
+    C.slotsUsed[i]++; f.uses.used -= i + 1;
+    commit();
+  },
+  pts2slot(i) {
+    i = +i;
+    const f = sorceryFeature(C), cost = [2, 3, 5, 6, 7][i];
+    if (usesLeft(f.uses) < cost || !C.slotsUsed[i]) return;
+    f.uses.used += cost; C.slotsUsed[i]--;
+    markUse("bonus");
+    commit();
+  },
+  theme: k => { C.theme = k || ""; commit(); },
   editatk: id => openSheet("attack", id),
   saveatk(id) {
     const v = k => document.getElementById(k).value.trim();
@@ -353,6 +449,7 @@ const ACTS = {
     if (it.charges) { if (it.charges.used >= it.charges.max) return toast("Sem cargas."); it.charges.used++; commit(); return toast(`${esc(it.name)}: ${it.charges.max - it.charges.used} cargas restantes.`); }
     if (it.qty <= 0) return;
     it.qty--;
+    markUse("action");
     const h = (it.desc || "").match(/regains? (\d+d\d+(?:\s*\+\s*\d+)?) hit points/i);
     if (h) { const r = rollDice(h[1]); applyHeal(r.total); toast(`${esc(it.name)}: <b>+${r.total} PV</b> ${r.detail}`); }
     else { commit(); toast(`${esc(it.name)} usado (${it.qty} restante${it.qty === 1 ? "" : "s"}).`); }
@@ -447,6 +544,7 @@ const ACTS = {
     C.slots = I.slotsForClasses(C.classes);
     const p = I.pactFor(C.classes);
     C.pact = p ? Object.assign(p, {used: C.pact ? Math.min(p.max, C.pact.used) : 0}) : null;
+    applyClassRules(C);
     commit();
   },
   delclass: i => { if (confirm("Remover esta classe?")) { C.classes.splice(+i, 1); commit(); } },
@@ -470,7 +568,11 @@ const ACTS = {
     Object.assign(f, {name, text, act, uses: max > 0 ? {max, per, used: Math.min(max, used)} : null});
     closeSheet(); commit();
   },
-  delfeat: id => { C.features = C.features.filter(f => f.id !== id); closeSheet(); commit(); },
+  delfeat(id) {
+    const f = C.features.find(x => x.id === id);
+    if (f && f.auto) C.meta.dismissed = (C.meta.dismissed || []).concat(f.name);
+    C.features = C.features.filter(x => x.id !== id); closeSheet(); commit();
+  },
   export: () => exportBackup(),
   copy: () => copyBackup(),
   delchar() {

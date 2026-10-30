@@ -1,6 +1,6 @@
-const CACHE = "dnd-stat-manager-v3";
+const CACHE = "dnd-stat-manager-v7";
 const CORE = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png",
-  "./js/importers.js", "./js/core.js", "./js/views.js", "./js/actions.js",
+  "./js/importers.js", "./js/core.js", "./js/rules.js", "./js/views.js", "./js/actions.js",
   "./data/srd-monsters.js", "./data/srd-spells.js", "./data/srd-items.js"];
 
 self.addEventListener("install", (e) => {

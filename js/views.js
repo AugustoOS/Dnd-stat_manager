@@ -2,21 +2,25 @@
 /* ================= ÍCONES / PEÇAS ================= */
 const moonSVG = (filled, size) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
-     <circle cx="12" cy="12" r="9" fill="${filled ? "var(--moon)" : "var(--moondim)"}"
-       stroke="${filled ? "var(--moon)" : "rgba(233,216,166,.35)"}" stroke-width="1.5"/>
+     <circle cx="12" cy="12" r="9" stroke-width="1.5"
+       style="fill:${filled ? "var(--moon)" : "var(--moondim)"};stroke:${filled ? "var(--moon)" : "rgba(var(--moonrgb),.35)"}"/>
      ${filled ? '<circle cx="9.5" cy="9" r="2" fill="rgba(12,17,32,.18)"/>' : ""}</svg>`;
-const num = (act, val, w) => `<input type="number" inputmode="numeric" value="${val}" data-num="${act}" style="width:${w || 64}px">`;
+/* w = 0: sem largura fixa (o CSS do container decide) */
+const num = (act, val, w) => `<input type="number" inputmode="numeric" value="${val}" data-num="${act}"${w === 0 ? "" : ` style="width:${w || 64}px"`}>`;
 const pips = (act, max, used, size) => Array.from({length: max}, (_, i) =>
   `<button class="moon" data-act="${act}:${i}" aria-label="uso ${i + 1}">${moonSVG(i < max - used, size || 24)}</button>`).join("");
 const tag = (t, cls) => `<span class="tag ${cls || ""}">${t}</span>`;
-const chev = open => `<span class="chev ${open ? "open" : ""}">›</span>`;
+const chev = open => `<span class="chev ${open ? "open" : ""}" aria-hidden="true"></span>`;
 const SPEED_ICON = {fly: "voo", swim: "nado", climb: "escalada", burrow: "escavação"};
 
 function render() {
   const y = window.scrollY;
   const app = document.getElementById("app");
   const nav = document.querySelector("nav");
+  document.getElementById("dicebtn").style.display = C ? "" : "none";
+  document.body.classList.toggle("narrow", !C);
   if (!C) {
+    applyTheme();
     nav.style.display = "none";
     document.getElementById("cname").textContent = "Stat Manager D&D 5e";
     document.getElementById("subtitle").textContent = "Nenhuma ficha carregada";
@@ -25,9 +29,11 @@ function render() {
     return;
   }
   nav.style.display = "";
-  const showForms = formModes(C).length > 1;
+  applyTheme();
+  const showForms = formModes(C).length > 1, showSpells = C.spells.length > 0 || C.casting.length > 0;
   document.querySelector('nav [data-tab="forms"]').style.display = showForms ? "" : "none";
-  if (UI.tab === "forms" && !showForms) UI.tab = "combat";
+  document.querySelector('nav [data-tab="spells"]').style.display = showSpells ? "" : "none";
+  if ((UI.tab === "forms" && !showForms) || (UI.tab === "spells" && !showSpells)) UI.tab = "combat";
   app.innerHTML = UI.tab === "combat" ? combatTab() : UI.tab === "spells" ? spellsTab() : UI.tab === "forms" ? formsTab() : sheetTab();
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === UI.tab));
   document.getElementById("cname").textContent = C.name;
@@ -41,7 +47,7 @@ function welcomeView() {
   return `<div class="card hero">
     <div class="h1">Seu gerenciador de fichas</div>
     <p class="hint">Carregue uma ficha para controlar vida, recursos, magias e formas durante a sessão. Tudo fica salvo neste aparelho.</p>
-    <button class="big primary" data-act="import">Importar ficha</button>
+    <button class="big primary wide mt8" data-act="import">Importar ficha</button>
   </div>
   ${importOptions()}
   ${!UI.storageOK ? `<div class="hint warn">Este navegador bloqueou o salvamento. Abra pelo Safari / tela de início.</div>` : ""}`;
@@ -60,35 +66,92 @@ function importOptions() {
 
 /* ================= COMBATE ================= */
 function combatTab() {
-  let h = statsStrip();
-  h += hpCard();
-  h += formsCard();
-  h += resourcesCard();
-  h += actionsCard();
-  h += equipmentCard();
-  h += deathCard();
-  return h;
+  return statsStrip() + `<div class="cols"><div class="col">${turnCard() + hpCard() + deathCard() + formsCard() + powersCard() + resourcesCard()}</div>
+    <div class="col">${actionsCard() + equipmentCard()}</div></div>`;
 }
 function statsStrip() {
-  const cast = C.casting[0];
+  const cast = C.casting.find(c => c.dc);
   const sp = C.speed;
   const extra = ["fly", "swim", "climb", "burrow"].filter(k => sp[k] > 0).map(k => SPEED_ICON[k] + " " + sp[k]).join(" · ");
+  const ac = curAC(C), spd = curSpeed(C);
   let h = `<div class="strip">
-    <div><span>CA</span><b>${C.ac}</b></div>
-    <div><span>Inic.</span><b>${fm(initiative(C))}</b></div>
-    <div><span>Desl.</span><b>${sp.walk}</b></div>
-    <div><span>Perc.</span><b>${passivePerc(C)}</b></div>
+    <div class="${ac !== C.ac ? "boost" : ""}"><span>CA</span><b>${ac}</b></div>
+    <button data-act="test:init" aria-label="Rolar iniciativa"><span>Inic.</span><b>${fm(initiative(C))}</b></button>
+    <div class="${spd > sp.walk ? "boost" : spd < sp.walk ? "low" : ""}"><span>Desl.</span><b>${spd}</b></div>
+    <button data-act="test:skill:Perception" aria-label="Rolar Percepção"><span>Perc.</span><b>${passivePerc(C)}</b></button>
     <div><span>Prof.</span><b>${fm(profB(C))}</b></div>
-    ${cast && cast.dc ? `<div><span>CD</span><b>${cast.dc}</b></div>` : ""}
+    ${cast ? `<div><span>CD</span><b>${cast.dc}</b></div>` : ""}
   </div>`;
   const lines = [];
   if (extra) lines.push("Deslocamento: " + extra);
   if (C.defenses) lines.push(esc(C.defenses));
   if (C.vision) lines.push(esc(C.vision));
   if (lines.length) h += `<div class="hint center">${lines.join(" · ")}</div>`;
+  h += conditionsRow();
+  C.states.forEach(k => {
+    const s = stateDef(k);
+    h += `<div class="conc state"><span>✦ <b>${esc(s.name)}</b> <small>${esc(s.eff(C).slice(0, 2).join(" · "))}</small></span>
+      <button data-act="stateoff:${k}">Encerrar</button></div>`;
+  });
   if (C.concentration) h += `<div class="conc"><span>◉ Concentrando em <b>${esc(C.concentration)}</b></span>
     <button data-act="endconc" aria-label="Encerrar concentração">Encerrar</button></div>`;
   return h;
+}
+function conditionsRow() {
+  const chips = C.conditions.map(k => `<button class="chip sm bad" data-act="cond:${k}">${condName(k)} ✕</button>`);
+  if (C.exhaustion) chips.push(`<button class="chip sm bad" data-act="conditions">Exaustão ${C.exhaustion}</button>`);
+  return `<div class="row wrap gap6 condrow">${chips.join("")}<button class="chip sm" data-act="conditions">+ Condição</button>
+    <button class="chip sm" data-act="dice">🎲 Rolagens</button></div>`;
+}
+
+/* ---------- TURNO ---------- */
+function turnCard() {
+  const T = C.turn;
+  if (!T.round) return `<div class="card tight"><div class="row"><span class="lbl">Fora de combate</span>
+    <div class="row gap6"><button class="ghost" data-act="test:init">🎲 Iniciativa</button><button class="ghost" data-act="startcombat">Começar</button></div></div></div>`;
+  const apa = C.attacksPerAction || 1;
+  const slot = (k, label) => `<button class="tslot ${T[k] ? "used" : ""}" data-act="tuse:${k}">${label}</button>`;
+  return `<div class="card tight turn">
+    <div class="row"><span class="lbl">Rodada ${T.round}${T.init ? ` · iniciativa ${T.init}` : ""}</span>
+      <button class="x" data-act="endcombat">Fim do combate</button></div>
+    <div class="tslots mt8">${slot("action", "Ação" + (apa > 1 ? ` <small>${Math.min(T.attacks || 0, apa)}/${apa} ataques</small>` : ""))}
+      ${slot("bonus", "Bônus")}${slot("reaction", "Reação")}${slot("move", "Mover " + curSpeed(C))}</div>
+    ${T.bonusSpell && T.slotSpell ? `<div class="hint warn mt6">Magia de ação bônus neste turno: a outra magia só pode ser um truque de 1 ação.</div>` : ""}
+    <button class="big primary wide mt8" data-act="nextturn">Próximo turno</button></div>`;
+}
+
+/* ---------- PODERES DE CLASSE ---------- */
+function classFacts() {
+  const L = n => lvlOf(C, n), out = [];
+  if (L("rogue")) out.push("Ataque Furtivo " + ((featNamed(C, /^sneak attack$/i) || {text: ""}).text.match(/(\d+)d6/) || [0, Math.ceil(L("rogue") / 2)])[1] + "d6 · 1×/turno");
+  if (L("barbarian")) out.push("Dano da Fúria +" + rageDmg(C));
+  if (L("bard")) out.push("Inspiração d" + bardDie(L("bard")));
+  if (L("monk")) out.push("Artes Marciais d" + (L("monk") >= 17 ? 10 : L("monk") >= 11 ? 8 : L("monk") >= 5 ? 6 : 4) + " · CD de ki " + (8 + profB(C) + abilMod(C, "wis")));
+  if (/battle master/i.test(subOf(C, "fighter"))) { const f = L("fighter"); out.push(`Superioridade d${f >= 18 ? 12 : f >= 10 ? 10 : 8} · CD ${8 + profB(C) + Math.max(abilMod(C, "str"), abilMod(C, "dex"))}`); }
+  if (L("paladin") >= 2) out.push("Destruição Divina: 2d8 + 1d8 por nível acima do 1º (máx. 5d8)");
+  if (L("wizard") && arcaneRecovery(C)) { const n = Math.ceil(L("wizard") / 2); out.push(`Recuperação Arcana: até ${n} níve${n > 1 ? "is" : "l"} de espaço`); }
+  if (C.pact) out.push(`Pacto: ${C.pact.max} espaço${C.pact.max > 1 ? "s" : ""} de ${ORD(C.pact.level)} · voltam no descanso curto`);
+  return out;
+}
+function powersCard() {
+  const states = availableStates(C), facts = classFacts();
+  const sorc = sorceryFeature(C), arc = arcaneRecovery(C);
+  if (!states.length && !facts.length && !sorc) return "";
+  let h = `<div class="card"><span class="lbl">Poderes</span>`;
+  states.forEach(s => {
+    const f = featNamed(C, s.rx), on = isOn(C, s.key);
+    const left = f.uses ? usesLeft(f.uses) : null;
+    h += `<div class="power ${on ? "on" : ""}"><div class="row gap8">
+      <span class="rname"><b>${esc(s.name)}</b> <small>${esc(f.name)}${left != null ? ` · ${left}/${f.uses.max} usos` : ""} · ${{bonus: "ação bônus", action: "ação", reaction: "reação"}[s.act]}</small></span>
+      <button class="chip ${on ? "" : "on"}" data-act="${on ? "stateoff" : "stateon"}:${s.key}" ${!on && left === 0 ? "disabled" : ""}>${on ? "Encerrar" : "Ativar"}</button></div>
+      ${on ? `<ul class="eff">${s.eff(C).map(e => `<li>${esc(e)}</li>`).join("")}</ul>` : ""}</div>`;
+  });
+  if (facts.length) h += `<div class="facts">${facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>`;
+  const tools = [];
+  if (sorc && sorc.uses) tools.push(`<button class="chip" data-act="fom">Fonte de Magia · ${usesLeft(sorc.uses)} pontos</button>`);
+  if (arc && arc.uses && usesLeft(arc.uses) && C.slotsUsed.some(Boolean)) tools.push(`<button class="chip" data-act="arcrec">Recuperação Arcana</button>`);
+  if (tools.length) h += `<div class="row wrap gap6 mt10">${tools.join("")}</div>`;
+  return h + `</div>`;
 }
 function activeForm() { return C.forms.find(f => f.cur > 0) || null; }
 function hpCard() {
@@ -111,14 +174,12 @@ function hpCard() {
       <button class="big dmg" data-act="dmg">− Dano</button>
       <button class="big heal" data-act="heal">+ Cura</button></div>
     ${af ? `<div class="hint center mt8">Dano e cura vão primeiro para a forma <b>${esc(af.name)}</b>.</div>` : ""}
+    ${!af && !wsInfo(C) ? `<div class="center mt8"><button class="linkish hint" data-act="addform">+ forma ou vida extra (Polymorph, Wild Shape de outra fonte…)</button></div>` : ""}
   </div>`;
 }
 function formsCard() {
   const ws = wsInfo(C);
-  if (!C.forms.length && !ws) {
-    return `<div class="card"><div class="row"><span class="lbl">Vidas extras · formas</span>
-      <button class="ghost" data-act="addform">+ Forma</button></div></div>`;
-  }
+  if (!C.forms.length && !ws) return "";
   let h = `<div class="card"><div class="row"><span class="lbl">${ws ? "Forma atual" : "Vidas extras · formas"}</span>
     <div class="row gap6">${ws ? `<button class="ghost" data-act="tab:forms">Escolher forma</button>` : ""}
     <button class="ghost" data-act="addform">+</button></div></div>`;
@@ -208,14 +269,18 @@ function actionsCard() {
     }
   }
   if (t === "action" && C.attacks.length) {
-    h += `<div class="sub">Ataques${C.attacksPerAction > 1 ? ` · ${C.attacksPerAction} por ação Atacar` : ""}</div>`;
+    h += `<div class="sub">Ataques${C.attacksPerAction > 1 ? ` · ${C.attacksPerAction} por ação Atacar` : ""}</div>${rollModeSeg()}`;
+    const ex = damageExtras(C);
+    if (ex.length) h += `<div class="row wrap gap6 mt8"><span class="hint">Somar:</span>${ex.map(extraChip).join("")}</div>`;
     C.attacks.forEach(a => {
       const open = UI.open["at:" + a.id];
-      h += `<button class="li" data-act="open:at:${a.id}"><span class="lname">${esc(a.name)}</span>
-        <span class="lmeta">${esc(a.attack)} · ${esc(a.damage)}</span>${chev(open)}</button>
+      h += `<div class="li static atk"><button class="linkish lname" data-act="open:at:${a.id}">${esc(a.name)} ${chev(open)}
+          <small class="atkmeta">${esc(a.attack)} · ${esc(a.damage)}</small></button>
+        <button class="chip on" data-act="rollatk:${a.id}" aria-label="Rolar ${esc(a.name)}">🎲</button></div>
         ${open ? `<div class="lbody">${a.range ? `<p>Alcance: ${esc(a.range)}</p>` : ""}${a.notes ? `<p>${esc(a.notes)}</p>` : ""}
-          <div class="row gap6"><button class="chip" data-act="rollatk:${a.id}">Rolar</button><button class="chip" data-act="editatk:${a.id}">Editar</button></div></div>` : ""}`;
+          <div class="row gap6"><button class="chip" data-act="editatk:${a.id}">Editar</button></div></div>` : ""}`;
     });
+    h += `<button class="linkish hint mt6" data-act="editatk:new">+ ataque</button>`;
   }
   /* magias por tempo de conjuração */
   const spells = C.spells.filter(s => (s.prepared || s.always || s.atWill || s.level === 0) && actionKind(spellInfo(s).castingTime) === t);
@@ -244,10 +309,24 @@ function actionsCard() {
     h += `<div class="sub">${t === "reaction" ? "Comum" : "Ações comuns"}</div><div class="row wrap gap6">` +
       basic.map(([n]) => `<button class="chip ${UI.open["b:" + n] ? "on" : ""}" data-act="open:b:${encodeURIComponent(n)}">${n}</button>`).join("") + `</div>`;
     const op = basic.find(([n]) => UI.open["b:" + n]);
-    if (op) h += `<div class="hint mt8">${op[1]}</div>`;
+    if (op) h += `<div class="row gap8 mt8"><div class="hint grow">${op[1]}</div>
+      ${C.turn.round ? `<button class="chip on" data-act="basic:${t}:${encodeURIComponent(op[0])}">Usar</button>` : ""}</div>`;
   }
   if (t === "bonus") h += `<div class="hint mt8">Só uma ação bônus por turno. Se conjurar uma magia como ação bônus, a outra magia do turno só pode ser um truque de 1 ação.</div>`;
   return h + `</div></div>`;
+}
+function rollModeSeg() {
+  return `<div class="seg small3 mt6">${[["dis", "Desvantagem"], ["normal", "Normal"], ["adv", "Vantagem"]].map(([k, l]) =>
+    `<button class="${UI.rollMode === k ? "on" : ""}" data-act="rmode:${k}">${l}</button>`).join("")}</div>`;
+}
+function extraChip(x) {
+  if (x.smite) {
+    const l = UI.ext.smite || 0;
+    const avail = C.slots.map((m, i) => m - C.slotsUsed[i] > 0 ? i + 1 : 0).filter(Boolean);
+    return avail.length ? `<button class="chip sm ${l ? "on" : ""}" data-act="smite">${l ? `Destruição ${ORD(l)} · ${smiteDice(l)}` : "Destruição Divina"}</button>` : "";
+  }
+  const v = x.dice ? x.dice : x.hit ? x.hit + "/+" + x.flat : "+" + x.flat;
+  return `<button class="chip sm ${extraOn(x) ? "on" : ""}" data-act="ext:${x.key}">${esc(x.label)} <small>${esc(v)}${x.once ? " · 1×" : ""}</small></button>`;
 }
 function spellTags(s, info) {
   let t = "";
@@ -293,6 +372,7 @@ function castButtons(s, info) {
     if (C.pact && C.pact.level >= s.level) b.push(`<button class="chip" data-act="cast:${s.id}:p" ${C.pact.used < C.pact.max ? "" : "disabled"}>Pacto ${ORD(C.pact.level)} <small>(${C.pact.max - C.pact.used})</small></button>`);
     if (info.ritual) b.push(`<button class="chip" data-act="cast:${s.id}:r">Ritual (+10 min)</button>`);
   }
+  if (spellPlan(C, s, info, s.lastSlot || s.level)) b.push(`<button class="chip" data-act="rollspell:${s.id}">🎲 Só rolar${s.level && s.lastSlot > s.level ? " (" + ORD(s.lastSlot) + ")" : ""}</button>`);
   return `<div class="castrow">${b.join("")}</div>`;
 }
 function featureRow(f) {
@@ -323,12 +403,14 @@ function equipmentCard() {
     });
   });
   const c = C.coins;
-  h += `<div class="coins">${["pp", "gp", "ep", "sp", "cp"].map(k => `<label><span>${{pp: "PL", gp: "PO", ep: "PE", sp: "PP", cp: "PC"}[k]}</span>${num("coin:" + k, c[k], 58)}</label>`).join("")}</div>
+  h += `<div class="coins">${["pp", "gp", "ep", "sp", "cp"].map(k => `<label><span>${{pp: "PL", gp: "PO", ep: "PE", sp: "PP", cp: "PC"}[k]}</span>${num("coin:" + k, c[k], 0)}</label>`).join("")}</div>
     <button class="ghost wide mt8" data-act="additem">+ Adicionar item</button></div>`;
   return h;
 }
 function deathCard() {
-  return `<div class="card"><span class="lbl">Testes contra a morte</span>
+  if (C.hp.current > 0 && !C.deathSaves.s && !C.deathSaves.f) return "";
+  return `<div class="card death"><div class="row"><span class="lbl">Testes contra a morte</span>
+    <button class="chip" data-act="deathroll">🎲 Rolar</button></div>
     <div class="row around mt10">
     ${[["s", "Sucessos", "var(--green)"], ["f", "Falhas", "var(--red)"]].map(([k, lbl, c]) => `
       <div class="center"><div class="small" style="color:${c}">${lbl}</div>
@@ -347,18 +429,22 @@ function spellsTab() {
       <div class="hint">${esc(c.ability || "")}${c.dc ? " · CD " + c.dc : ""}${c.attack ? " · ataque " + esc(c.attack) : ""}${c.prepares ? "" : " · magias conhecidas"}</div></div>`;
   });
   if (!C.spells.length) return h + `<div class="card"><div class="hint">Esta ficha não tem magias.</div></div>`;
+  const sf = spellFilter();
+  const nPrep = C.spells.filter(s => s.prepared || s.always || s.level === 0).length;
   h += `<div class="card sticky"><input type="search" class="search" placeholder="Buscar magia" value="${esc(UI.spellQ)}" data-input="spellQ">
     <div class="seg mt8">
-      <button class="${UI.spellFilter === "all" ? "on" : ""}" data-act="sfilter:all">Todas</button>
-      <button class="${UI.spellFilter === "prepared" ? "on" : ""}" data-act="sfilter:prepared">Preparadas</button></div>
+      <button class="${sf === "prepared" ? "on" : ""}" data-act="sfilter:prepared">Preparadas (${nPrep})</button>
+      <button class="${sf === "all" ? "on" : ""}" data-act="sfilter:all">Todas (${C.spells.length})</button></div>
     </div><div class="hint center">Círculo cheio = preparada (toque para trocar). Toque no nome de uma preparada para ver a descrição.</div>
     <div id="spellList">${spellListHTML()}</div>`;
   return h;
 }
+/* Listas grandes (clérigo/druida trazem a lista inteira da classe) abrem só com as preparadas. */
+const spellFilter = () => UI.spellFilter || (C.spells.length > 40 ? "prepared" : "all");
 function spellListHTML() {
   const q = UI.spellQ.trim().toLowerCase();
   let list = C.spells.filter(s => !q || s.name.toLowerCase().includes(q));
-  if (UI.spellFilter === "prepared") list = list.filter(s => s.prepared || s.always || s.level === 0);
+  if (spellFilter() === "prepared" && !q) list = list.filter(s => s.prepared || s.always || s.level === 0);
   if (!list.length) return `<div class="card"><div class="hint">Nenhuma magia encontrada.</div></div>`;
   let h = "";
   for (let l = 0; l <= 9; l++) {
@@ -491,6 +577,11 @@ function sheetTab() {
     ${field("Nome", "name")}${field("Raça", "race")}${field("Antecedente", "background")}${field("Tendência", "alignment")}
     ${field("Jogador", "player")}${field("XP", "xp", "num")}</div></div>`;
 
+  const tk = themeKey(C);
+  h += `<div class="card"><div class="row"><span class="lbl">Cor do app</span><span class="hint">${C.theme ? "escolhida por você" : "automática pela classe"}</span></div>
+    <div class="row wrap gap6 mt8">${Object.keys(THEMES).map(k => `<button class="swatch ${k === tk ? "on" : ""}" data-act="theme:${k}" style="--sw:${THEMES[k][1]}">
+      <i></i>${THEMES[k][0]}</button>`).join("")}${C.theme ? `<button class="chip sm" data-act="theme:">Automática</button>` : ""}</div></div>`;
+
   h += `<div class="card"><div class="row"><span class="lbl">Classes · nível ${totalLevel(C)}</span><button class="ghost" data-act="addclass">+ Classe</button></div>
     ${C.classes.map((c, i) => `<div class="classrow">
       <input value="${esc(c.name)}" data-f="classes.${i}.name" placeholder="Classe">
@@ -514,6 +605,7 @@ function sheetTab() {
     ${ABIL.map(([k, , full]) => { const p = C.saves[k].prof; return `<button class="saverow" data-act="save:${k}">
       <span><span class="check ${p ? "on" : ""}"></span>${full}</span><span class="${p ? "moonword" : "muted"} serif18">${fm(saveTotal(C, k))}</span></button>`; }).join("")}</div></div>`;
 
+  h += `</div><div class="col">`;
   h += `<div class="card"><div class="row"><span class="lbl">Perícias</span><span class="hint">toque: — → prof. → especialista</span></div><div class="mt6">
     ${I.SKILLS.map(([s, a]) => { const sk = C.skills[s]; return `<button class="saverow" data-act="skill:${encodeURIComponent(s)}">
       <span><span class="check ${sk.exp ? "exp" : sk.prof ? "on" : ""}"></span>${SKILL_PT[s]} <small class="muted">${ABIL_SHORT[a]}</small></span>
@@ -527,7 +619,7 @@ function sheetTab() {
 
   h += `<div class="card"><div class="row"><span class="lbl">Características</span><button class="ghost" data-act="addfeat">+</button></div><div class="list mt8">
     ${C.features.map(f => { const open = UI.open["sf:" + f.id]; return `<button class="li" data-act="open:sf:${f.id}"><span class="lname">${esc(f.name)}
-      ${f.uses ? tag(f.uses.max + "/" + (PER_PT[f.uses.per] || "")) : ""}${f.group === "race" ? tag("raça") : ""}</span>${chev(open)}</button>
+      ${f.uses ? tag(f.uses.max + "/" + (PER_PT[f.uses.per] || "")) : ""}${f.group === "race" ? tag("raça") : ""}${f.auto || f.autoUses ? tag("regra", "g") : ""}</span>${chev(open)}</button>
       ${open ? `<div class="lbody">${f.text ? rich(f.text) : `<p class="hint">Sem descrição.</p>`}<button class="chip" data-act="editfeat:${f.id}">Editar</button></div>` : ""}`; }).join("")}
     </div></div>`;
 
@@ -553,7 +645,7 @@ function sheetTab() {
   h += `<button class="danger" data-act="delchar">Apagar esta ficha</button>`;
   if (!UI.storageOK) h += `<div class="hint warn center">Este navegador bloqueou o salvamento. Abra pelo Safari / tela de início.</div>`;
   h += `<div class="hint center mt14">Bestiário e magias de referência: SRD 5.1 © Wizards of the Coast (CC-BY-4.0).</div>`;
-  return h;
+  return `<div class="cols"><div class="col">` + h + `</div></div>`;
 }
 function getPath(o, path) { return path.split(".").reduce((a, k) => a == null ? a : a[k], o); }
 function field(label, path, type) {
@@ -584,6 +676,52 @@ const SHEETS = {
   import: () => `<div class="h2">Importar ficha</div>${importOptions()}`,
   busy: msg => `<div class="center pad"><div class="spinner"></div><p class="hint">${esc(msg)}</p></div>`,
   info: html => html,
+  dice: () => {
+    const last = C.log[0];
+    return `<div class="h2">Rolagens</div>
+      ${last ? `<div class="lastroll"><span>${esc(last.title)}</span><b>${last.total}</b><small>${last.detail}</small></div>` : ""}
+      ${rollModeSeg()}<p class="hint center">O modo vale para a próxima rolagem de d20. Condições e estados entram sozinhos.</p>
+      <div class="sub">Dados</div><div class="row wrap gap6">${[4, 6, 8, 10, 12, 20, 100].map(n => `<button class="chip" data-act="rolld:${n}">d${n}</button>`).join("")}</div>
+      <div class="row gap8 mt8"><input id="dexpr" class="search grow" placeholder="Ex.: 2d6+3" value="${esc(UI.dexpr || "")}"><button class="chip on" data-act="rollexpr">Rolar</button></div>
+      <div class="sub">Iniciativa e salvaguardas</div><div class="testgrid">
+        <button class="tbtn" data-act="test:init"><span>Inic.</span><b>${fm(initiative(C))}</b></button>
+        ${ABIL.map(([k, s]) => `<button class="tbtn ${C.saves[k].prof ? "prof" : ""}" data-act="test:save:${k}"><span>${s}</span><b>${fm(saveTotal(C, k))}</b></button>`).join("")}</div>
+      <div class="sub">Atributos</div><div class="testgrid">
+        ${ABIL.map(([k, s]) => `<button class="tbtn" data-act="test:abil:${k}"><span>${s}</span><b>${fm(abilMod(C, k))}</b></button>`).join("")}</div>
+      <div class="sub">Perícias</div><div class="list">
+        ${I.SKILLS.map(([s, a]) => { const sk = C.skills[s]; return `<button class="saverow" data-act="test:skill:${encodeURIComponent(s)}">
+          <span><span class="check ${sk.exp ? "exp" : sk.prof ? "on" : ""}"></span>${SKILL_PT[s]} <small class="muted">${ABIL_SHORT[a]}</small></span>
+          <span class="${sk.prof ? "moonword" : "muted"} serif18">${fm(skillTotal(C, s))}</span></button>`; }).join("")}</div>
+      ${C.log.length ? `<div class="row mt14"><span class="sub" style="margin:0">Histórico</span><button class="x" data-act="clearlog">limpar</button></div>
+        <div class="list">${C.log.slice(0, 15).map(l => `<div class="li static small"><span class="lname">${esc(l.title)}<br><small>${l.detail}</small></span><b class="serif18">${l.total}</b></div>`).join("")}</div>` : ""}`;
+  },
+  conditions: () => `<div class="h2">Condições</div>
+    <p class="hint">Toque para ligar ou desligar. As que mudam rolagens (Envenenado, Caído, Invisível…) já aplicam vantagem ou desvantagem sozinhas.</p>
+    <div class="list">${CONDITIONS.map(([k, n, d]) => { const on = C.conditions.includes(k); return `<button class="li ${on ? "cur" : ""}" data-act="cond:${k}">
+      <span class="check ${on ? "on" : ""}"></span><span class="lname">${n}<br><small>${esc(d)}</small></span></button>`; }).join("")}</div>
+    <div class="sub">Exaustão</div><div class="row gap8"><button class="pm sm minus" data-act="exh:-1">−</button><span class="cnt">${C.exhaustion}<small>/6</small></span>
+      <button class="pm sm plus" data-act="exh:1">+</button></div>
+    <div class="hint mt6">${C.exhaustion ? EXHAUSTION.slice(1, C.exhaustion + 1).map((e, i) => `${i + 1}. ${e}`).join("<br>") : "Sem exaustão. Descanso longo tira 1 nível."}</div>`,
+  arcrec: () => {
+    const w = lvlOf(C, "wizard"), budget = Math.ceil(w / 2);
+    const pick = UI.arc, spent = pick.reduce((a, n, i) => a + n * (i + 1), 0);
+    return `<div class="h2">Recuperação Arcana</div><p class="hint">Depois de um descanso curto, recupere espaços gastos somando até <b>${budget}</b> níveis (nenhum de 6º ou maior). Uma vez por dia.</p>
+      ${C.slots.slice(0, 5).map((mx, i) => mx && C.slotsUsed[i] ? `<div class="row res"><span class="rname">${ORD(i + 1)} nível <small>${C.slotsUsed[i]} gasto${C.slotsUsed[i] > 1 ? "s" : ""}</small></span>
+        <div class="row gap6"><button class="pm sm minus" data-act="arc:${i}:-1">−</button><span class="cnt">${pick[i] || 0}</span>
+        <button class="pm sm plus" data-act="arc:${i}:1" ${(pick[i] || 0) >= C.slotsUsed[i] || spent + i + 1 > budget ? "disabled" : ""}>+</button></div></div>` : "").join("")}
+      <p class="hint center">${spent}/${budget} níveis escolhidos</p>
+      <button class="big primary wide" data-act="doarc" ${spent ? "" : "disabled"}>Recuperar</button>`;
+  },
+  fom: () => {
+    const f = sorceryFeature(C), pts = usesLeft(f.uses);
+    const COST = [2, 3, 5, 6, 7];
+    return `<div class="h2">Fonte de Magia</div><p class="big18">Pontos de feitiçaria: <b class="moonword">${pts}</b> / ${f.uses.max}</p>
+      <div class="sub">Espaço → pontos (sem ação)</div><div class="row wrap gap6">${C.slots.map((mx, i) => mx ? `<button class="chip" data-act="fom2pts:${i}"
+        ${mx - C.slotsUsed[i] > 0 && f.uses.used >= i + 1 ? "" : "disabled"}>${ORD(i + 1)} → +${i + 1}</button>` : "").join("")}</div>
+      <div class="sub">Pontos → espaço (ação bônus)</div><div class="row wrap gap6">${COST.map((c, i) => C.slots[i] ? `<button class="chip" data-act="pts2slot:${i}"
+        ${pts >= c && C.slotsUsed[i] > 0 ? "" : "disabled"}>${c} pts → ${ORD(i + 1)}</button>` : "").join("")}</div>
+      <p class="hint mt8">Pontos não passam do máximo. Aqui o espaço criado recupera um espaço gasto daquele nível.</p>`;
+  },
   importDone: id => {
     const ch = DB.chars[id];
     if (!ch) return "";

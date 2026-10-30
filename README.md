@@ -11,8 +11,12 @@ Gerenciador de fichas de D&D 5e (regras de 2014) para usar durante a sessão, no
 
 ## Abas
 
-- **Combate**: PV e PV temporários, forma ativa (o dano vai primeiro para a forma), concentração com a CD do teste, espaços de magia, pacto, usos de features, cargas de itens, dados de vida, descansos, ações separadas em ação / ação bônus / reação, e equipamento com sintonização.
-- **Magias**: todas as magias da lista, as preparadas marcadas, e a descrição das preparadas.
+- **Combate**: PV e PV temporários, turno (ação / bônus / reação / movimento, rodada e iniciativa), condições com as regras (vantagem e desvantagem entram sozinhas nas rolagens), estados ativos (Fúria, Canção da Lâmina, Poder do Gigante, Maldição do Hexblade, Escudo, Esquiva), forma ativa (o dano vai primeiro para a forma), concentração com a CD do teste, espaços de magia, pacto, usos de features, cargas de itens, dados de vida, descansos, ações separadas em ação / ação bônus / reação, e equipamento com sintonização.
+- **Ataques e magias com rolagem**: ataque com vantagem/desvantagem, crítico dobra os dados, e extras de dano (Ataque Furtivo, Destruição Divina, Golpe Divino, GWM/Sharpshooter, Fúria, Hex, Hunter's Mark…). Magias rolam dano ou cura pelo nível do espaço (truques escalam com o nível, Eldritch Blast com Agonizing Blast, Disciple of Life e Blessed Healer).
+- **Rolagens** (dado no cabeçalho): testes de perícia, salvaguarda, atributo e iniciativa, dados livres e histórico. Respeita Talento Confiável e o Sortudo halfling.
+- **Poderes de classe**: recursos que o PDF nem sempre traz são criados pela regra (pontos de feitiçaria, ki, dados de superioridade, Imposição de Mãos, Inspiração que volta no descanso curto, Recuperação Arcana…), com Fonte de Magia e Recuperação Arcana interativas.
+- **Cor do app** pela classe principal (ou escolhida na aba Ficha).
+- **Magias**: todas as magias da lista, as preparadas marcadas, e a descrição das preparadas. Listas grandes abrem só com as preparadas.
 - **Formas** (druidas e quem tem Shapechange/Polymorph etc.): criaturas por CR para Wild Shape, elementais, Shapechange, Polymorph, Animal Shapes e Conjure Animals, cada uma com o stat block completo. Criaturas fora do SRD podem ser adicionadas colando o stat block.
 - **Ficha**: troca de personagem, edição de tudo, história, anotações e backup.
 

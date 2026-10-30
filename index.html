@@ -20,10 +20,11 @@ if ("serviceWorker" in navigator) {
 <style>
   :root{
     --bg:#0C1120; --card:#161D33; --soft:#1C2440; --line:rgba(237,241,248,.10);
-    --text:#EDF1F8; --muted:#8A93AB; --moon:#E9D8A6; --moondim:#3A4160;
+    --text:#EDF1F8; --muted:#8A93AB; --moon:#E9D8A6; --moonrgb:233,216,166; --moondim:#3A4160;
     --green:#7FB069; --red:#E56B6F; --blue:#9FC5E8; --ink:#1A1A10;
     --serif:'Iowan Old Style',Palatino,Georgia,serif;
     --sb:#F6EFDC; --sbtext:#2A1E12; --sbred:#7A200D;
+    --maxw:560px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--text);
@@ -32,15 +33,22 @@ if ("serviceWorker" in navigator) {
   button{font-family:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;color:inherit}
   button:disabled{opacity:.4;cursor:default}
   input,textarea,select{font-family:inherit;color:var(--text);background:var(--soft);border:1px solid var(--line);border-radius:10px}
+  /* o cabeçalho acompanha a largura do conteúdo (no PC não fica com o nome num canto e o dado no outro) */
   header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line);
-    padding:calc(12px + env(safe-area-inset-top)) 16px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+    padding:calc(12px + env(safe-area-inset-top)) max(16px, calc((100% - var(--maxw)) / 2 + 16px)) 10px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px}
   header>div:first-child{min-width:0}
   .name{font-family:var(--serif);font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sub-h{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dot{width:7px;height:7px;border-radius:4px;background:var(--green);margin-left:6px;transition:background .3s;flex:none}
   .dot.saving{background:var(--moon)}
-  main{padding:14px 14px 110px;max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  main{padding:14px 14px 110px;max-width:var(--maxw);margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  body.narrow{--maxw:560px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+  /* palavra longa demais (nome de item, URL, stat block) quebra em vez de vazar da caixa */
+  .card,.sheet-body,.conc,#toast,.statblock{overflow-wrap:anywhere}
+  /* colunas: empilhadas no celular, lado a lado no PC */
+  .cols,.col,#spellList,#monList{display:flex;flex-direction:column;gap:12px;min-width:0}
   .card.tight{padding:12px 14px}
   .card.sticky{position:sticky;top:calc(58px + env(safe-area-inset-top));z-index:5;box-shadow:0 8px 18px rgba(0,0,0,.25)}
   .hero{text-align:center}
@@ -74,7 +82,7 @@ if ("serviceWorker" in navigator) {
   .bar>div{height:100%;transition:width .25s}
   .amt{flex:1;padding:10px 0;border-radius:10px;font-size:15px;font-weight:600;background:var(--soft);border:1px solid var(--line)}
   .amt.on{background:var(--moon);color:var(--ink)}
-  .big{flex:1;padding:15px 0;border-radius:12px;font-size:16px;font-weight:700;border:none;display:block}
+  .big{flex:1;padding:15px 14px;border-radius:12px;font-size:16px;font-weight:700;border:none;display:block}
   .big.wide{width:100%}
   .big.dmg{background:var(--red);color:#fff}
   .big.heal{background:var(--green);color:var(--bg)}
@@ -82,13 +90,13 @@ if ("serviceWorker" in navigator) {
   .big.soft{background:var(--soft);border:1px solid var(--line);font-weight:500}
   .tfbtns{display:flex;flex-direction:column;gap:8px;margin-top:14px}
   .moon{background:none;border:none;padding:3px;line-height:0}
-  .pips{display:flex;flex-wrap:wrap;justify-content:flex-end}
+  .pips{display:flex;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
   .ghost{background:var(--soft);color:var(--moon);border:1px solid var(--line);border-radius:10px;padding:7px 12px;font-size:14px}
   .ghost.wide{width:100%;padding:11px}
   .stepbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--soft);color:var(--moon);font-size:22px;font-weight:600}
   .chip{padding:8px 12px;border-radius:999px;font-size:14px;line-height:1.2;background:var(--soft);border:1px solid var(--line)}
   .chip.sm{padding:6px 10px;font-size:13px}
-  .chip.on{background:rgba(233,216,166,.16);color:var(--moon);border-color:rgba(233,216,166,.55)}
+  .chip.on{background:rgba(var(--moonrgb),.16);color:var(--moon);border-color:rgba(var(--moonrgb),.55)}
   .chip.bad{color:var(--red);border-color:rgba(229,107,111,.4)}
   .chip small{opacity:.7}
   .x{background:none;border:1px solid var(--line);color:var(--muted);font-size:13px;padding:5px 10px;border-radius:999px}
@@ -101,16 +109,56 @@ if ("serviceWorker" in navigator) {
   .moonword{font-family:var(--serif);font-size:18px;color:var(--moon)}
   .linkish{background:none;border:none;padding:0;text-align:left}
   /* faixa de números */
-  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(52px,1fr));gap:6px}
-  .strip>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center}
-  .strip span{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(46px,1fr));gap:6px}
+  @media (max-width:359px){.strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .strip>div,.strip>button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center;font-size:inherit}
+  .strip>button{border-color:rgba(var(--moonrgb),.35)}
+  .strip span{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
   .strip b{font-family:var(--serif);font-size:21px;font-weight:400}
+  .strip .boost b{color:var(--green)}.strip .low b{color:var(--red)}
+  .condrow{justify-content:center}
+  .conc.state{background:rgba(var(--moonrgb),.10);border-color:rgba(var(--moonrgb),.45);color:var(--moon)}
+  .conc.state button{border-color:rgba(var(--moonrgb),.45);color:var(--moon)}
+  .conc small{opacity:.8}
+  /* turno */
+  .tslots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .tslot{padding:10px 2px;border-radius:10px;border:1px solid rgba(var(--moonrgb),.55);background:rgba(var(--moonrgb),.14);color:var(--moon);font-size:13px;font-weight:600;line-height:1.2}
+  .tslot small{display:block;font-weight:400;font-size:11px;opacity:.8}
+  .tslot.used{background:none;border-color:var(--line);color:var(--muted);text-decoration:line-through}
+  .turn .big{padding:12px 12px}
+  /* poderes */
+  .power{border-top:1px solid var(--line);padding:10px 0 4px;margin-top:8px}
+  .power.on .rname b{color:var(--moon)}
+  .eff{margin:6px 0 2px;padding-left:18px;font-size:13px;line-height:1.5;color:var(--text)}
+  .facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .facts span{font-size:12px;padding:5px 9px;border-radius:8px;background:var(--soft);border:1px solid var(--line);color:var(--muted)}
+  .swatch{display:flex;align-items:center;gap:6px;padding:7px 11px 7px 8px;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:13px}
+  .swatch i{width:14px;height:14px;border-radius:7px;background:var(--sw);display:block}
+  .swatch.on{border-color:var(--sw);color:var(--sw)}
+  /* rolagens */
+  .testgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .tbtn{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:7px 2px;font-size:inherit}
+  .tbtn span{display:block;font-size:10px;letter-spacing:.1em;color:var(--muted)}
+  .tbtn b{font-family:var(--serif);font-size:18px;font-weight:400}
+  .tbtn.prof{border-color:rgba(var(--moonrgb),.55)}.tbtn.prof b{color:var(--moon)}
+  .lastroll{display:flex;flex-direction:column;align-items:center;background:var(--soft);border-radius:14px;padding:10px;margin-bottom:10px}
+  .lastroll span{font-size:13px;color:var(--muted)}.lastroll b{font-family:var(--serif);font-size:44px;font-weight:400;color:var(--moon);line-height:1.1}
+  .lastroll small{font-size:12px;color:var(--muted);text-align:center}
+  .seg.small3 button{padding:7px 2px;font-size:12px}
+  .rt-title{font-family:var(--serif);font-size:17px;margin-bottom:2px}
+  .rt-line{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:8px}
+  .rt-line>span:first-child{font-size:12px;color:var(--muted);min-width:0}
+  .rt-num{font-family:var(--serif);font-size:30px;font-weight:400;color:var(--moon);line-height:1.15}
+  .rt-num.crit{color:var(--green)}.rt-num.fail{color:var(--red)}
+  .rt-detail{font-size:12px;color:var(--muted);line-height:1.35}
+  .dicebtn{background:none;border:1px solid rgba(var(--moonrgb),.45);border-radius:10px;padding:5px 7px;line-height:0;color:var(--moon)}
   .conc{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(159,197,232,.12);
     border:1px solid rgba(159,197,232,.45);color:var(--blue);border-radius:12px;padding:9px 12px;font-size:14px}
   .conc button{background:none;border:1px solid rgba(159,197,232,.45);color:var(--blue);border-radius:999px;padding:5px 10px;font-size:13px}
   .form{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
-  .res{padding:5px 0;gap:8px;min-height:38px}
-  .rname{font-size:15px;flex:1;min-width:0}
+  .res{padding:5px 0;gap:4px 8px;min-height:38px;flex-wrap:wrap}
+  /* nome com base mínima: se as bolinhas não couberem ao lado, descem para a linha de baixo */
+  .rname{font-size:15px;flex:1 1 120px;min-width:0}
   .rname small{display:block;font-size:11px;color:var(--muted)}
   /* abas segmentadas e listas */
   .seg{display:flex;background:var(--soft);border-radius:11px;padding:3px;gap:3px}
@@ -124,10 +172,15 @@ if ("serviceWorker" in navigator) {
     padding:11px 2px;text-align:left;font-size:15px}
   .li.static{cursor:default}
   .li.cur .lname{color:var(--moon)}
-  .lname{flex:1;min-width:0}
+  .lname{flex:1 1 120px;min-width:0}
+  .li.static{flex-wrap:wrap;row-gap:4px}
   .lname small{color:var(--muted)}
-  .lmeta{font-size:13px;color:var(--muted);text-align:right;max-width:48%}
-  .chev{color:var(--muted);font-size:20px;line-height:1;transition:transform .2s;display:inline-block}
+  .atkmeta{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+  .li.atk{flex-wrap:nowrap}.li.atk .chip{flex:none}
+  .lmeta{font-size:13px;color:var(--muted);text-align:right;max-width:48%;min-width:0}
+  /* caixa quadrada: girada 90° continua do mesmo tamanho e não invade a borda */
+  .chev{color:var(--muted);width:18px;height:18px;transition:transform .2s;display:inline-flex;align-items:center;justify-content:center;flex:none;vertical-align:-3px}
+  .chev::before{content:"";width:6px;height:6px;border:solid currentColor;border-width:2px 2px 0 0;transform:rotate(45deg);margin-left:-3px}
   .chev.open{transform:rotate(90deg)}
   .lbody{padding:8px 4px 12px;border-bottom:1px solid var(--line);font-size:14px;line-height:1.5}
   .lbody p{margin:0 0 8px}
@@ -141,9 +194,9 @@ if ("serviceWorker" in navigator) {
   .tag.g{color:var(--green);border-color:rgba(127,176,105,.45)}
   .attn{font-size:13px;color:var(--green)}
   .attn.bad{color:var(--red)}
-  .coins{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:14px}
+  .coins{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:14px}
   .coins label{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted)}
-  .coins input{width:100%}
+  .coins input{width:100%;min-width:0;padding:8px 2px}
   .dsb{background:none;border:none;padding:5px}
   .ds{width:20px;height:20px;border-radius:10px;border:2px solid;display:block}
   /* magias */
@@ -151,7 +204,7 @@ if ("serviceWorker" in navigator) {
   .pbox{width:24px;height:24px;flex:none;border-radius:12px;border:2px solid var(--moondim);background:none}
   .pbox.on{background:var(--green);border-color:var(--green);box-shadow:inset 0 0 0 3px var(--card)}
   .pbox.fixed{border-style:dotted}
-  .sname{flex:1;background:none;border:none;text-align:left;padding:10px 0;font-size:15px;color:var(--muted)}
+  .sname{flex:1;min-width:0;background:none;border:none;text-align:left;padding:10px 0;font-size:15px;color:var(--muted)}
   .srow.on .sname{color:var(--text)}
   /* bestiário */
   .crhead{font-family:var(--serif);font-size:17px;color:var(--moon);margin-bottom:2px}
@@ -193,7 +246,7 @@ if ("serviceWorker" in navigator) {
   .check.on{background:var(--moon)}
   .check.exp{background:var(--green);border-color:var(--green)}
   .chk{display:flex;align-items:center;gap:6px;font-size:14px}
-  .warnbox{border-color:rgba(233,216,166,.4)}
+  .warnbox{border-color:rgba(var(--moonrgb),.4)}
   .danger{padding:13px 0;border-radius:12px;background:rgba(229,107,111,.12);color:var(--red);border:1px solid rgba(229,107,111,.4);font-size:14px;width:100%}
   .opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
   .opt{display:flex;flex-direction:column;gap:3px;text-align:left;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
@@ -222,7 +275,34 @@ if ("serviceWorker" in navigator) {
     width:min(92vw,520px);box-shadow:0 10px 30px rgba(0,0,0,.4);transition:all .25s;z-index:60}
   #toast.show{opacity:1;transform:translate(-50%,0)}
   #toast.bad{border-color:rgba(229,107,111,.6)}
+  #toast.roll{border-color:rgba(var(--moonrgb),.5)}
+  #toast.act.show{pointer-events:auto}
   input[type=file]{display:none}
+  /* teclado e mouse (PC) */
+  :focus-visible{outline:2px solid var(--moon);outline-offset:2px}
+  @media (hover:hover){
+    .chip:hover,.ghost:hover,.amt:hover,.tbtn:hover,.swatch:hover,.opt:hover,.strip>button:hover,.dicebtn:hover{border-color:rgba(var(--moonrgb),.6)}
+    .li:not(.static):hover,.saverow:hover,.mrow:hover{background:rgba(var(--moonrgb),.05)}
+    .big:not(:disabled):hover,.tslot:hover{filter:brightness(1.08)}
+    nav button:hover{color:var(--text)}
+  }
+  /* PC e tablet deitado: conteúdo largo em duas colunas, painel vira janela no centro */
+  @media (min-width:860px){
+    :root{--maxw:1120px}
+    main{padding:20px 24px 110px;gap:14px}
+    .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+    .col{gap:14px}
+    #spellList,#monList{display:block;column-count:2;column-gap:14px}
+    #spellList>*,#monList>*{break-inside:avoid;margin-bottom:14px}
+    #monList>.hint{column-span:all}
+    .card.sticky{top:calc(64px + env(safe-area-inset-top))}
+    nav{justify-content:center}
+    nav button{flex:0 1 170px}
+    #sheet.open{display:flex;align-items:center;justify-content:center;padding:4vh 24px}
+    .sheet{position:relative;left:auto;right:auto;bottom:auto;width:100%;max-width:620px;max-height:92vh;border-radius:20px;margin:0}
+    .grab{display:none}
+    #toast{bottom:calc(76px + env(safe-area-inset-bottom))}
+  }
 </style>
 </head>
 <body>
@@ -232,9 +312,9 @@ if ("serviceWorker" in navigator) {
     <div class="sub-h" id="subtitle"></div>
   </div>
   <div style="display:flex;align-items:center;gap:4px;flex:none">
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3a9 9 0 1 0 0 18 7 9 0 0 1 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
-    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="#E9D8A6"/></svg>
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3a9 9 0 1 1 0 18 7 9 0 0 0 0-18z" fill="#E9D8A6" opacity=".8"/></svg>
+    <button class="dicebtn" id="dicebtn" data-act="dice" aria-label="Rolagens">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 2 21 7v10l-9 5-9-5V7z"/><path d="M12 2 7.5 9.5h9zM3 7l4.5 2.5L12 22l4.5-12.5L21 7M7.5 9.5 3 17M16.5 9.5 21 17"/></svg>
+    </button>
     <span class="dot" id="dot"></span>
   </div>
 </header>
@@ -251,7 +331,7 @@ if ("serviceWorker" in navigator) {
     Magias
   </button>
   <button data-tab="forms">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="6" cy="10" r="2"/><circle cx="10" cy="5.5" r="2"/><circle cx="14" cy="5.5" r="2"/><circle cx="18" cy="10" r="2"/><path d="M12 12c-3 0-5.5 3.5-5.5 6 0 1.5 1.2 2.5 2.7 2.2 1.1-.2 1.8-.7 2.8-.7s1.7.5 2.8.7c1.5.3 2.7-.7 2.7-2.2 0-2.5-2.5-6-5.5-6z"/></svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8.3 10a.7.7 0 0 1-.63-1.08L11.4 3a.7.7 0 0 1 1.2-.04L16.3 8.9a.7.7 0 0 1-.57 1.1z" stroke-linejoin="round"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><circle cx="17.5" cy="17.5" r="3.5"/></svg>
     Formas
   </button>
   <button data-tab="sheet">
@@ -268,6 +348,7 @@ if ("serviceWorker" in navigator) {
 
 <script src="js/importers.js"></script>
 <script src="js/core.js"></script>
+<script src="js/rules.js"></script>
 <script src="js/views.js"></script>
 <script src="js/actions.js"></script>
 </body>
